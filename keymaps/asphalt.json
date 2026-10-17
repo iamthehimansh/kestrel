@@ -1,0 +1,26 @@
+{
+  "name": "Racing (Asphalt 9 / Legends Unite, manual steering)",
+  "package": "com.gameloft.android.ANMP.GloftA9HM",
+  "description": "A/D or arrow keys steer (taps on the left/right of the screen), W nitro, S brake/drift, Space double-tap nitro. Gamepad D-pad steers, R2 nitro, L2 brake.",
+  "aspect": 1.7778,
+  "controls": [
+    {"type": "tap", "key": "A", "at": [0.15, 0.6], "label": "Steer left"},
+    {"type": "tap", "key": "D", "at": [0.85, 0.6], "label": "Steer right"},
+    {"type": "tap", "key": "Left", "at": [0.15, 0.6], "label": "Steer left"},
+    {"type": "tap", "key": "Right", "at": [0.85, 0.6], "label": "Steer right"},
+    {"type": "tap", "key": "Pad.Left", "at": [0.15, 0.6], "label": "Steer left (pad)"},
+    {"type": "tap", "key": "Pad.Right", "at": [0.85, 0.6], "label": "Steer right (pad)"},
+    {"type": "tap", "key": "S", "at": [0.12, 0.88], "label": "Brake / Drift"},
+    {"type": "tap", "key": "Down", "at": [0.12, 0.88], "label": "Brake / Drift"},
+    {"type": "tap", "key": "Pad.L2", "at": [0.12, 0.88], "label": "Brake (pad)"},
+    {"type": "tap", "key": "W", "at": [0.88, 0.88], "label": "Nitro"},
+    {"type": "tap", "key": "Up", "at": [0.88, 0.88], "label": "Nitro"},
+    {"type": "tap", "key": "Pad.R2", "at": [0.88, 0.88], "label": "Nitro (pad)"},
+    {"type": "combo", "key": "Space", "points": [[0.88, 0.88], [0.88, 0.88]], "intervalMs": 90, "label": "Perfect nitro"},
+    {"type": "swipe", "key": "Q", "from": [0.5, 0.6], "to": [0.3, 0.6], "durationMs": 120, "label": "Knockdown left"},
+    {"type": "swipe", "key": "E", "from": [0.5, 0.6], "to": [0.7, 0.6], "durationMs": 120, "label": "Knockdown right"},
+    {"type": "swipe", "key": "R", "from": [0.5, 0.65], "to": [0.5, 0.85], "durationMs": 140, "label": "360 spin"},
+    {"type": "tap", "key": "C", "at": [0.95, 0.12], "label": "Camera"},
+    {"type": "tap", "key": "Escape", "at": [0.04, 0.06], "label": "Pause"}
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "Free Fire / Free Fire MAX (default HUD)",
+  "package": "com.dts.freefireth",
+  "description": "WASD move, mouse look, LMB fire, RMB scope. Free Fire MAX uses package com.dts.freefiremax; copy this file and change the package.",
+  "aspect": 1.7778,
+  "startInLook": false,
+  "controls": [
+    {"type": "joystick", "up": "W", "down": "S", "left": "A", "right": "D", "stick": "left", "center": [0.15, 0.73], "radius": 0.068, "walkKey": "Ctrl", "walkScale": 0.5},
+    {"type": "look", "center": [0.6, 0.4], "radius": 0.15, "sensitivity": 1.15, "stick": "right", "stickSpeed": 1200, "scopeKey": "MouseRight", "scopeSensitivity": 0.6},
+    {"type": "fire", "key": "MouseLeft", "at": [0.86, 0.6], "mode": "look", "label": "Fire"},
+    {"type": "tap", "key": "MouseRight", "at": [0.94, 0.45], "mode": "look", "label": "Scope"},
+    {"type": "tap", "key": "Pad.R2", "at": [0.86, 0.6], "label": "Fire (pad)"},
+    {"type": "tap", "key": "Space", "at": [0.93, 0.76], "label": "Jump"},
+    {"type": "tap", "key": "C", "at": [0.86, 0.9], "label": "Crouch"},
+    {"type": "tap", "key": "Z", "at": [0.93, 0.9], "label": "Prone"},
+    {"type": "tap", "key": "R", "at": [0.79, 0.9], "label": "Reload"},
+    {"type": "tap", "key": "F", "at": [0.67, 0.5], "label": "Pick up"},
+    {"type": "tap", "key": "Q", "at": [0.69, 0.9], "label": "Gloo wall"},
+    {"type": "tap", "key": "G", "at": [0.74, 0.9], "label": "Grenade"},
+    {"type": "tap", "key": "E", "at": [0.6, 0.9], "label": "Skill"},
+    {"type": "tap", "key": "1", "at": [0.44, 0.9], "label": "Weapon 1"},
+    {"type": "tap", "key": "2", "at": [0.56, 0.9], "label": "Weapon 2"},
+    {"type": "tap", "key": "3", "at": [0.5, 0.9], "label": "Melee"},
+    {"type": "tap", "key": "4", "at": [0.33, 0.9], "label": "Medkit"},
+    {"type": "tap", "key": "Tab", "at": [0.06, 0.07], "label": "Bag"},
+    {"type": "tap", "key": "M", "at": [0.9, 0.12], "label": "Map"},
+    {"type": "tap", "key": "Escape", "at": [0.965, 0.04], "label": "Settings"},
+    {"type": "macro", "key": "Mouse4", "label": "Double gloo wall", "script": "tap 0.69 0.9\nwait 120\ntap 0.69 0.9"}
+  ]
+}

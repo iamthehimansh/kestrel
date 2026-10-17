@@ -1,0 +1,29 @@
+{
+  "name": "Call of Duty: Mobile (MP default HUD)",
+  "package": "com.activision.callofduty.shooter",
+  "description": "WASD move, mouse look, LMB fire, RMB ADS. Uses Advanced fire mode HUD positions.",
+  "aspect": 1.7778,
+  "controls": [
+    {"type": "joystick", "up": "W", "down": "S", "left": "A", "right": "D", "stick": "left", "center": [0.14, 0.7], "radius": 0.065, "walkKey": "Ctrl", "walkScale": 0.45, "sprintKey": "Shift", "sprintScale": 1.7},
+    {"type": "look", "center": [0.63, 0.42], "radius": 0.14, "sensitivity": 1.05, "stick": "right", "stickSpeed": 1150, "scopeKey": "MouseRight", "scopeSensitivity": 0.55},
+    {"type": "fire", "key": "MouseLeft", "at": [0.87, 0.6], "mode": "look", "label": "Fire"},
+    {"type": "tap", "key": "MouseRight", "at": [0.94, 0.47], "mode": "look", "label": "ADS"},
+    {"type": "tap", "key": "Pad.R2", "at": [0.87, 0.6], "label": "Fire (pad)"},
+    {"type": "tap", "key": "Pad.L2", "at": [0.94, 0.47], "label": "ADS (pad)"},
+    {"type": "tap", "key": "Space", "at": [0.935, 0.78], "label": "Jump"},
+    {"type": "tap", "key": "C", "at": [0.87, 0.9], "label": "Crouch / Slide"},
+    {"type": "tap", "key": "Z", "at": [0.94, 0.9], "label": "Prone"},
+    {"type": "tap", "key": "R", "at": [0.8, 0.9], "label": "Reload"},
+    {"type": "tap", "key": "F", "at": [0.75, 0.75], "label": "Melee"},
+    {"type": "tap", "key": "G", "at": [0.71, 0.9], "label": "Lethal"},
+    {"type": "tap", "key": "Q", "at": [0.66, 0.9], "label": "Tactical"},
+    {"type": "tap", "key": "E", "at": [0.6, 0.12], "label": "Operator skill"},
+    {"type": "tap", "key": "X", "at": [0.55, 0.12], "label": "Scorestreak 1"},
+    {"type": "tap", "key": "1", "at": [0.42, 0.88], "label": "Primary"},
+    {"type": "tap", "key": "2", "at": [0.5, 0.88], "label": "Secondary"},
+    {"type": "tap", "key": "Tab", "at": [0.06, 0.07], "label": "Scoreboard"},
+    {"type": "tap", "key": "Escape", "at": [0.965, 0.04], "label": "Settings"},
+    {"type": "tap", "key": "WheelUp", "at": [0.42, 0.88], "mode": "look", "label": "Primary (wheel)"},
+    {"type": "tap", "key": "WheelDown", "at": [0.5, 0.88], "mode": "look", "label": "Secondary (wheel)"}
+  ]
+}

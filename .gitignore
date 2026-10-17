@@ -1,0 +1,7 @@
+.build/
+.swiftpm/
+*.xcodeproj
+.DS_Store
+.cocreate/
+# Private research notes, not part of the project.
+REPORT.md

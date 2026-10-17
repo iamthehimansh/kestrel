@@ -1,0 +1,31 @@
+{
+  "name": "Genshin Impact (default mobile HUD)",
+  "package": "com.miHoYo.GenshinImpact",
+  "description": "WASD move, mouse look (on at start, ` toggles), LMB normal attack, E skill (hold for charged), Q burst, Space jump, Shift sprint.",
+  "aspect": 1.7778,
+  "startInLook": true,
+  "controls": [
+    {"type": "joystick", "up": "W", "down": "S", "left": "A", "right": "D", "stick": "left", "center": [0.16, 0.72], "radius": 0.075, "walkKey": "Ctrl", "walkScale": 0.4},
+    {"type": "look", "center": [0.55, 0.38], "radius": 0.2, "sensitivity": 0.9, "stick": "right", "stickSpeed": 1000},
+    {"type": "fire", "key": "MouseLeft", "at": [0.9, 0.82], "mode": "look", "label": "Attack"},
+    {"type": "tap", "key": "Pad.X", "at": [0.9, 0.82], "label": "Attack (pad)"},
+    {"type": "skill", "key": "E", "at": [0.8, 0.86], "radius": 0.0, "label": "Elemental skill"},
+    {"type": "skill", "key": "Q", "at": [0.745, 0.7], "radius": 0.0, "label": "Burst"},
+    {"type": "tap", "key": "Space", "at": [0.93, 0.66], "label": "Jump"},
+    {"type": "tap", "key": "Shift", "at": [0.86, 0.66], "label": "Sprint"},
+    {"type": "tap", "key": "MouseRight", "at": [0.86, 0.66], "mode": "look", "label": "Sprint (RMB)"},
+    {"type": "tap", "key": "F", "at": [0.66, 0.53], "label": "Interact"},
+    {"type": "tap", "key": "R", "at": [0.73, 0.82], "label": "Aim mode"},
+    {"type": "tap", "key": "1", "at": [0.95, 0.27], "label": "Party 1"},
+    {"type": "tap", "key": "2", "at": [0.95, 0.37], "label": "Party 2"},
+    {"type": "tap", "key": "3", "at": [0.95, 0.47], "label": "Party 3"},
+    {"type": "tap", "key": "4", "at": [0.95, 0.57], "label": "Party 4"},
+    {"type": "tap", "key": "M", "at": [0.08, 0.13], "label": "Map"},
+    {"type": "tap", "key": "B", "at": [0.81, 0.05], "label": "Inventory"},
+    {"type": "tap", "key": "C", "at": [0.86, 0.05], "label": "Characters"},
+    {"type": "tap", "key": "J", "at": [0.03, 0.27], "label": "Quests"},
+    {"type": "tap", "key": "Escape", "at": [0.03, 0.05], "label": "Paimon menu"},
+    {"type": "turbo", "key": "Mouse4", "at": [0.9, 0.82], "intervalMs": 90, "label": "Auto attack"},
+    {"type": "macro", "key": "Mouse5", "label": "Skill then burst", "script": "press S 0.8 0.86\nwait 60\nrelease S\nwait 250\ntap 0.745 0.7"}
+  ]
+}

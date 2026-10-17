@@ -1,0 +1,23 @@
+{
+  "name": "Mobile Legends: Bang Bang (default HUD)",
+  "package": "com.mobile.legends",
+  "description": "MOBA layout: WASD move, Q/E/R skills aimed toward the mouse cursor, Space cancels while held, LMB basic attack.",
+  "aspect": 1.7778,
+  "controls": [
+    {"type": "joystick", "up": "W", "down": "S", "left": "A", "right": "D", "stick": "left", "center": [0.15, 0.75], "radius": 0.07},
+    {"type": "tap", "key": "MouseLeft", "at": [0.9, 0.82], "label": "Attack"},
+    {"type": "tap", "key": "Pad.A", "at": [0.9, 0.82], "label": "Attack (pad)"},
+    {"type": "skill", "key": "Q", "at": [0.745, 0.86], "radius": 0.075, "cancelKey": "Space", "cancelAt": [0.82, 0.2], "label": "Skill 1"},
+    {"type": "skill", "key": "E", "at": [0.79, 0.69], "radius": 0.075, "cancelKey": "Space", "cancelAt": [0.82, 0.2], "label": "Skill 2"},
+    {"type": "skill", "key": "R", "at": [0.865, 0.58], "radius": 0.075, "cancelKey": "Space", "cancelAt": [0.82, 0.2], "label": "Ultimate"},
+    {"type": "skill", "key": "F", "at": [0.67, 0.9], "radius": 0.06, "cancelKey": "Space", "cancelAt": [0.82, 0.2], "label": "Battle spell"},
+    {"type": "tap", "key": "1", "at": [0.6, 0.9], "label": "Recall"},
+    {"type": "tap", "key": "2", "at": [0.555, 0.9], "label": "Regen"},
+    {"type": "tap", "key": "B", "at": [0.03, 0.4], "label": "Shop"},
+    {"type": "tap", "key": "Tab", "at": [0.5, 0.04], "label": "Scoreboard"},
+    {"type": "tap", "key": "M", "at": [0.1, 0.15], "label": "Minimap"},
+    {"type": "tap", "key": "Z", "at": [0.86, 0.95], "label": "Lock minion"},
+    {"type": "tap", "key": "X", "at": [0.95, 0.68], "label": "Lock hero"},
+    {"type": "combo", "key": "C", "points": [[0.745, 0.86], [0.79, 0.69], [0.865, 0.58], [0.9, 0.82]], "intervalMs": 160, "label": "Full combo"}
+  ]
+}

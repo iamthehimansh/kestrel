@@ -1,0 +1,18 @@
+{
+  "name": "Endless runner (Subway Surfers)",
+  "package": "com.kiloo.subwaysurf",
+  "description": "Arrow keys or WASD swipe; Space activates hoverboard (double tap).",
+  "aspect": 0.5625,
+  "controls": [
+    {"type": "swipe", "key": "Up", "from": [0.5, 0.65], "to": [0.5, 0.4], "durationMs": 60, "label": "Jump"},
+    {"type": "swipe", "key": "Down", "from": [0.5, 0.4], "to": [0.5, 0.65], "durationMs": 60, "label": "Roll"},
+    {"type": "swipe", "key": "Left", "from": [0.6, 0.55], "to": [0.3, 0.55], "durationMs": 60, "label": "Left"},
+    {"type": "swipe", "key": "Right", "from": [0.4, 0.55], "to": [0.7, 0.55], "durationMs": 60, "label": "Right"},
+    {"type": "swipe", "key": "W", "from": [0.5, 0.65], "to": [0.5, 0.4], "durationMs": 60, "label": "Jump"},
+    {"type": "swipe", "key": "S", "from": [0.5, 0.4], "to": [0.5, 0.65], "durationMs": 60, "label": "Roll"},
+    {"type": "swipe", "key": "A", "from": [0.6, 0.55], "to": [0.3, 0.55], "durationMs": 60, "label": "Left"},
+    {"type": "swipe", "key": "D", "from": [0.4, 0.55], "to": [0.7, 0.55], "durationMs": 60, "label": "Right"},
+    {"type": "combo", "key": "Space", "points": [[0.5, 0.55], [0.5, 0.55]], "intervalMs": 80, "label": "Hoverboard"},
+    {"type": "tap", "key": "Escape", "at": [0.08, 0.05], "label": "Pause"}
+  ]
+}

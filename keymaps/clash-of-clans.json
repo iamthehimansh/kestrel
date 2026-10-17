@@ -1,0 +1,24 @@
+{
+  "name": "Clash of Clans / Clash Royale style strategy",
+  "package": "com.supercell.clashofclans",
+  "description": "Cursor stays free. Mouse wheel or =/- zoom with a two-finger pinch, WASD pans the base, number keys pick troops.",
+  "aspect": 1.7778,
+  "controls": [
+    {"type": "pinch", "inKey": "Equal", "outKey": "Minus", "center": [0.5, 0.5], "spread": 0.18, "durationMs": 180},
+    {"type": "pinch", "inKey": "WheelUp", "outKey": "WheelDown", "center": [0.5, 0.5], "spread": 0.12, "durationMs": 120},
+    {"type": "swipe", "key": "W", "from": [0.5, 0.35], "to": [0.5, 0.65], "durationMs": 200, "label": "Pan up"},
+    {"type": "swipe", "key": "S", "from": [0.5, 0.65], "to": [0.5, 0.35], "durationMs": 200, "label": "Pan down"},
+    {"type": "swipe", "key": "A", "from": [0.35, 0.5], "to": [0.65, 0.5], "durationMs": 200, "label": "Pan left"},
+    {"type": "swipe", "key": "D", "from": [0.65, 0.5], "to": [0.35, 0.5], "durationMs": 200, "label": "Pan right"},
+    {"type": "tap", "key": "1", "at": [0.14, 0.9], "label": "Slot 1"},
+    {"type": "tap", "key": "2", "at": [0.22, 0.9], "label": "Slot 2"},
+    {"type": "tap", "key": "3", "at": [0.3, 0.9], "label": "Slot 3"},
+    {"type": "tap", "key": "4", "at": [0.38, 0.9], "label": "Slot 4"},
+    {"type": "tap", "key": "5", "at": [0.46, 0.9], "label": "Slot 5"},
+    {"type": "tap", "key": "6", "at": [0.54, 0.9], "label": "Slot 6"},
+    {"type": "tap", "key": "7", "at": [0.62, 0.9], "label": "Slot 7"},
+    {"type": "tap", "key": "8", "at": [0.7, 0.9], "label": "Slot 8"},
+    {"type": "tap", "key": "B", "at": [0.9, 0.9], "label": "Shop / Build"},
+    {"type": "tap", "key": "Escape", "at": [0.04, 0.9], "label": "End battle / Back"}
+  ]
+}
