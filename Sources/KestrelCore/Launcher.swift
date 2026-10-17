@@ -5,7 +5,9 @@ public struct Launcher {
     public let store: InstanceStore
     public init(store: InstanceStore) { self.store = store }
 
-    public static func arguments(for instance: Instance, avdName: String, coldBoot: Bool = false) -> [String] {
+    /// `snapshot` boots from that saved state and leaves it unchanged on exit (the normal
+    /// quick-boot state is still saved separately when stopping).
+    public static func arguments(for instance: Instance, avdName: String, coldBoot: Bool = false, snapshot: String? = nil) -> [String] {
         let s = instance.settings
         let p = instance.ports
         var args = [
@@ -21,7 +23,11 @@ public struct Launcher {
         ]
         if !s.window { args.append("-no-window") }
         if !s.audio { args.append("-no-audio") }
-        if coldBoot { args.append("-no-snapshot-load") }
+        if let snapshot {
+            args += ["-snapshot", snapshot, "-no-snapshot-save", "-force-snapshot-load"]
+        } else if coldBoot {
+            args.append("-no-snapshot-load")
+        }
         args += ["-feature", s.vulkan ? "Vulkan" : "-Vulkan"]
         if s.vulkan { args += ["-feature", "GLDirectMem"] }
         if let brand = s.deviceBrand { args += ["-prop", "ro.product.brand=\(brand)"] }
@@ -47,16 +53,19 @@ public struct Launcher {
     }
 
     @discardableResult
-    public func start(_ index: Int, coldBoot: Bool = false) throws -> Int32 {
+    public func start(_ index: Int, coldBoot: Bool = false, snapshot: String? = nil) throws -> Int32 {
         let inst = try store.load(index)
         if let pid = runningPID(index) { return pid }
         guard store.sdk.hasSystemImage(inst.settings.systemImage) else {
-            throw KestrelError.environment("system image \(inst.settings.systemImage) is not installed; run: sdkmanager \"\(inst.settings.systemImage)\"")
+            throw KestrelError.environment("system image \(inst.settings.systemImage) is not installed; run: kestrel setup")
+        }
+        if let snapshot, !Snapshots(store: store).list(index).contains(where: { $0.name == snapshot }) {
+            throw KestrelError.notFound("snapshot '\(snapshot)'")
         }
         try store.save(inst)
         let proc = Process()
         proc.executableURL = store.sdk.emulator
-        proc.arguments = Self.arguments(for: inst, avdName: store.paths.avdName(index), coldBoot: coldBoot)
+        proc.arguments = Self.arguments(for: inst, avdName: store.paths.avdName(index), coldBoot: coldBoot, snapshot: snapshot)
         proc.environment = environment()
         FileManager.default.createFile(atPath: logFile(index).path, contents: nil)
         let log = try FileHandle(forWritingTo: logFile(index))

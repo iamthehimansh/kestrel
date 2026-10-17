@@ -6,6 +6,7 @@ let package = Package(
     platforms: [.macOS(.v13)],
     products: [
         .executable(name: "kestrel", targets: ["kestrel"]),
+        .executable(name: "KestrelApp", targets: ["KestrelApp"]),
         .library(name: "KestrelCore", targets: ["KestrelCore"]),
         .library(name: "KestrelKeymap", targets: ["KestrelKeymap"]),
     ],
@@ -14,6 +15,7 @@ let package = Package(
         .target(name: "KestrelKeymap"),
         .target(name: "KestrelPlay", dependencies: ["KestrelCore", "KestrelKeymap"]),
         .executableTarget(name: "kestrel", dependencies: ["KestrelCore", "KestrelKeymap", "KestrelPlay"]),
+        .executableTarget(name: "KestrelApp", dependencies: ["KestrelCore", "KestrelKeymap", "KestrelPlay"]),
         .testTarget(name: "KestrelCoreTests", dependencies: ["KestrelCore"]),
         .testTarget(name: "KestrelKeymapTests", dependencies: ["KestrelKeymap"]),
     ]

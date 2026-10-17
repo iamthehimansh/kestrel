@@ -54,6 +54,41 @@ final class EditingTests: XCTestCase {
         XCTAssertEqual(j2.radius, 0.5, "clamped")
     }
 
+    func testAddEveryControlTypeStaysValid() {
+        var e = KeymapEditor(keymap: Keymap(name: "blank", controls: []), aspect: 16.0 / 9.0)
+        for t in KeymapEditor.addableTypes {
+            XCTAssertNotNil(e.addControl(t, at: NPoint(0.4, 0.5)), t)
+        }
+        XCTAssertEqual(e.keymap.controls.map(\.typeName), KeymapEditor.addableTypes)
+        XCTAssertEqual(e.keymap.validate(), [], "every added control gets keys nothing else uses")
+        XCTAssertNil(e.addControl("look", at: NPoint(0.5, 0.5)), "only one look control")
+        XCTAssertNil(e.addControl("teleport", at: NPoint(0.5, 0.5)))
+        // A second joystick and pinch fall back to stick-only and free keys.
+        XCTAssertNotNil(e.addControl("joystick", at: NPoint(0.2, 0.7)))
+        XCTAssertNotNil(e.addControl("pinch", at: NPoint(0.5, 0.5)))
+        XCTAssertNotNil(e.addControl("scroll", at: NPoint(0.5, 0.5)))
+        XCTAssertEqual(e.keymap.validate(), [])
+    }
+
+    func testFreeKeyRunsOut() {
+        var e = KeymapEditor(keymap: Keymap(name: "full", controls: []), aspect: 1)
+        var added = 0
+        while e.addControl("tap", at: NPoint(0.5, 0.5)) != nil { added += 1 }
+        XCTAssertEqual(added, 26 + 10 + 12, "letters, digits and F1-F12")
+        XCTAssertNil(e.freeKey())
+        XCTAssertEqual(e.keymap.validate(), [])
+    }
+
+    func testUpdateAndReplace() {
+        var e = sample()
+        e.update(0, to: .tap(TapControl(key: "Q", at: NPoint(0.1, 0.1))))
+        XCTAssertEqual(e.keymap.controls[0].keys, ["Q"])
+        var km = e.keymap
+        km.name = "renamed"
+        e.replace(with: km)
+        XCTAssertEqual(e.keymap.name, "renamed")
+    }
+
     func testRebindAddRemove() {
         var e = sample()
         XCTAssertTrue(e.rebind(0, to: "G"))

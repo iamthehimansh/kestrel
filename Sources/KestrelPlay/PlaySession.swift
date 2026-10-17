@@ -34,6 +34,7 @@ public enum PlaySession {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
         let controller = PlayController(driver: driver, keymap: keymap, consolePort: instance.ports.console)
+        controller.onStatus = { print($0) }
         controller.start()
         driver.startTicking()
 
@@ -63,7 +64,11 @@ final class PlayController {
     let driver: Driver
     let keymap: Keymap
     let consolePort: Int
+    /// Short status lines for whoever hosts the session (stdout for the CLI, the app's UI).
+    var onStatus: ((String) -> Void)?
     private var tap: CFMachPort?
+    private var tapSource: CFRunLoopSource?
+    private var connectObserver: NSObjectProtocol?
     private var overlay: HintOverlay?
     private var windowTimer: Timer?
     private var emulatorFrame: CGRect?
@@ -77,38 +82,71 @@ final class PlayController {
         self.consolePort = consolePort
     }
 
-    func start() {
-        installEventTap()
+    /// False when the event tap could not be created (no Accessibility permission).
+    @discardableResult
+    func start() -> Bool {
+        let ok = installEventTap()
         overlay = HintOverlay(keymap: keymap)
         windowTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in self?.trackWindow() }
         trackWindow()
         setupGamepads()
+        return ok
     }
 
+    /// Tears everything down so the controller can be released while the host keeps running.
     func stop() {
+        windowTimer?.invalidate()
+        windowTimer = nil
         unlockCursor()
-        if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
+        if let tap {
+            CGEvent.tapEnable(tap: tap, enable: false)
+            if let tapSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), tapSource, .commonModes) }
+            CFMachPortInvalidate(tap)
+        }
+        tap = nil
+        tapSource = nil
+        if let connectObserver { NotificationCenter.default.removeObserver(connectObserver) }
+        connectObserver = nil
+        for c in controllers { detach(c) }
+        controllers.removeAll()
         overlay?.close()
+        overlay = nil
+        focused = false
     }
 
     // MARK: - Emulator window
 
-    /// The emulator's window title is "Android Emulator - <avd>:<console port>".
+    /// Finds this instance's window (title "Android Emulator - <avd>:<console port>") and
+    /// decides whether it is the window the user is typing into: it must be the frontmost
+    /// normal window of the frontmost app. Checking the app alone is not enough, because
+    /// every instance runs the same emulator binary, and two running instances would both
+    /// grab the keyboard.
     private func trackWindow() {
         let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         let marker = ":\(consolePort)"
         var frame: CGRect?
+        var ownerPID: pid_t?
         for w in list {
             guard let name = w[kCGWindowName as String] as? String, name.hasSuffix(marker),
                   let b = w[kCGWindowBounds as String] as? [String: CGFloat] else { continue }
             let r = CGRect(x: b["X"] ?? 0, y: b["Y"] ?? 0, width: b["Width"] ?? 0, height: b["Height"] ?? 0)
-            if r.width > 100 && r.height > 100 { frame = r; break }
+            if r.width > 100 && r.height > 100 {
+                frame = r
+                ownerPID = (w[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value
+                break
+            }
         }
         emulatorFrame = frame
-        let front = NSWorkspace.shared.frontmostApplication
-        let nowFocused = frame != nil && (front?.localizedName?.lowercased().contains("emulator") == true
-                                          || front?.bundleIdentifier?.contains("qemu") == true
-                                          || front?.executableURL?.path.contains("/emulator/") == true)
+        var nowFocused = false
+        if frame != nil, let ownerPID, NSWorkspace.shared.frontmostApplication?.processIdentifier == ownerPID {
+            // On-screen windows come front to back; the first normal (layer 0) window of the
+            // frontmost app is the one with keyboard focus.
+            let front = list.first { w in
+                (w[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == ownerPID
+                    && (w[kCGWindowLayer as String] as? NSNumber)?.intValue == 0
+            }
+            nowFocused = (front?[kCGWindowName as String] as? String)?.hasSuffix(marker) == true
+        }
         if nowFocused != focused {
             focused = nowFocused
             if !focused {
@@ -144,7 +182,7 @@ final class PlayController {
 
     // MARK: - Event tap
 
-    private func installEventTap() {
+    private func installEventTap() -> Bool {
         let types: [CGEventType] = [.keyDown, .keyUp, .flagsChanged, .mouseMoved, .leftMouseDown, .leftMouseUp,
                                     .rightMouseDown, .rightMouseUp, .otherMouseDown, .otherMouseUp,
                                     .leftMouseDragged, .rightMouseDragged, .otherMouseDragged, .scrollWheel]
@@ -155,13 +193,15 @@ final class PlayController {
             let ctl = Unmanaged<PlayController>.fromOpaque(refcon!).takeUnretainedValue()
             return ctl.handle(type: type, event: event)
         }, userInfo: me) else {
-            FileHandle.standardError.write(Data("kestrel: could not create the event tap (Accessibility permission?)\n".utf8))
-            return
+            onStatus?("Could not read the keyboard: give Kestrel the Accessibility permission.")
+            return false
         }
         self.tap = tap
         let src = CFMachPortCreateRunLoopSource(nil, tap, 0)
+        tapSource = src
         CFRunLoopAddSource(CFRunLoopGetMain(), src, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+        return true
     }
 
     private var mappedKeys: Set<String> {
@@ -269,17 +309,28 @@ final class PlayController {
     // MARK: - Gamepad
 
     private func setupGamepads() {
-        NotificationCenter.default.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) { [weak self] n in
+        connectObserver = NotificationCenter.default.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) { [weak self] n in
             if let c = n.object as? GCController { self?.attach(c) }
         }
         GCController.controllers().forEach(attach)
         GCController.startWirelessControllerDiscovery {}
     }
 
-    private func attach(_ c: GCController) {
+    private func detach(_ c: GCController) {
         guard let pad = c.extendedGamepad else { return }
+        pad.leftThumbstick.valueChangedHandler = nil
+        pad.rightThumbstick.valueChangedHandler = nil
+        for b in [pad.buttonA, pad.buttonB, pad.buttonX, pad.buttonY, pad.leftShoulder, pad.rightShoulder,
+                  pad.leftTrigger, pad.rightTrigger, pad.leftThumbstickButton, pad.rightThumbstickButton,
+                  pad.dpad.up, pad.dpad.down, pad.dpad.left, pad.dpad.right, pad.buttonMenu, pad.buttonOptions, pad.buttonHome] {
+            b?.pressedChangedHandler = nil
+        }
+    }
+
+    private func attach(_ c: GCController) {
+        guard let pad = c.extendedGamepad, !controllers.contains(where: { $0 === c }) else { return }
         controllers.append(c)
-        print("Gamepad connected: \(c.vendorName ?? "controller")")
+        onStatus?("Gamepad connected: \(c.vendorName ?? "controller")")
         pad.leftThumbstick.valueChangedHandler = { [weak self] _, x, y in
             guard self?.focused == true else { return }
             self?.driver.post(.stick(name: "left", x: Double(x), y: Double(-y)))

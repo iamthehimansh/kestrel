@@ -36,7 +36,23 @@ swift build -c release
 ./touchd/build.sh            # builds the on-device touch injector
 ```
 
-## Quick start
+## The app
+
+```sh
+./scripts/build-app.sh       # builds build/Kestrel.app (drag it to /Applications)
+```
+
+Kestrel.app does everything from one window:
+
+- **Instances** (sidebar): create, rename, duplicate, delete; Start, Cold Boot, Stop, Start All / Stop All. Stopping keeps the state, so the next Start resumes where you left off.
+- **Apps**: open Google Play, open a game's store page by package name, install APKs (button or drag and drop), open, close or uninstall apps. Games that have a keymap get a **Play** button that opens the game and turns key mapping on.
+- **Controls**: pick a game preset or make your own keymap, then edit it visually over a live screenshot of the game. Add any control type, drag to move, press a key to rebind, and fine-tune everything in the inspector. Save, duplicate, import and export keymaps. **Key Mapping** in the header turns it on or off, and can record your inputs for replay.
+- **Snapshots**: save the whole running state (game included) and restore it, or boot straight into it.
+- **Settings**: CPU, memory, frame rate, resolution, density, renderer, Vulkan, phone model, storage, mouse sensitivity, sound.
+
+On first launch, if the Android SDK is missing, the app offers to download it. Key mapping needs the Accessibility permission for Kestrel (System Settings → Privacy & Security → Accessibility). Instances keep running when you quit the app.
+
+## Quick start (command line)
 
 ```sh
 kestrel create --name Main --preset high --resolution tablet-1920x1080
@@ -145,7 +161,8 @@ kestrel keymap simulate bgmi keydown:W wait:50 keyup:W look:on mouse:40,0
 
 ```
 kestrel setup
-kestrel list | create | clone | delete | info | config | start | stop | presets | images
+kestrel list | create | clone | rename | delete | info | config | start | stop | presets | images
+kestrel snapshot list | save | load | delete
 kestrel playstore | install | uninstall | open | close | apps | shell | screenshot | adb | tap
 kestrel keymap list | new | edit | show | check | simulate
 kestrel play | replay

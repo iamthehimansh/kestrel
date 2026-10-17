@@ -38,6 +38,7 @@ public final class DeviceSink: TouchSink {
         if let env = ProcessInfo.processInfo.environment["KESTREL_TOUCHD"] { candidates.append(URL(fileURLWithPath: env)) }
         let exe = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent()
         candidates.append(exe.appendingPathComponent("touchd"))
+        candidates.append(exe.appendingPathComponent("../Resources/touchd").standardized)
         candidates.append(exe.appendingPathComponent("../touchd/touchd").standardized)
         candidates.append(exe.appendingPathComponent("../../touchd/touchd").standardized)
         candidates.append(URL(fileURLWithPath: fm.currentDirectoryPath).appendingPathComponent(".build/touchd/touchd"))

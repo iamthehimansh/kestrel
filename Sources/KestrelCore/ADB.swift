@@ -68,19 +68,30 @@ public struct ADB: Sendable {
     }
 
     public func screenshot(to path: String) throws {
+        try screenshotData().write(to: URL(fileURLWithPath: path))
+    }
+
+    /// PNG bytes of the current screen.
+    public func screenshotData() throws -> Data {
         // Raw bytes: runProcess decodes stdout as UTF-8, which would corrupt the PNG.
         let p = Process()
         p.executableURL = sdk.adb
         p.arguments = ["-s", serial, "exec-out", "screencap", "-p"]
         let pipe = Pipe()
         p.standardOutput = pipe
+        p.standardError = FileHandle.nullDevice
         try p.run()
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
         guard p.terminationStatus == 0, data.starts(with: [0x89, 0x50, 0x4E, 0x47]) else {
             throw KestrelError.runtime("screencap failed (exit \(p.terminationStatus))")
         }
-        try data.write(to: URL(fileURLWithPath: path))
+        return data
+    }
+
+    /// True once Android has finished booting.
+    public func isBooted() -> Bool {
+        (try? shell("getprop sys.boot_completed"))?.trimmingCharacters(in: .whitespacesAndNewlines) == "1"
     }
 }
 

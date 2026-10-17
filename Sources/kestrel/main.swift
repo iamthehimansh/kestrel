@@ -20,8 +20,13 @@ Instances
   delete <i>                             Delete an instance and its data
   info <i>                               Show settings, ports and state
   config <i> [--set '{json}']            Show or change settings (e.g. {"cpuCount":6,"fpsLimit":120})
-  start <i> [--cold] [--wait]            Boot an instance (--wait blocks until Android is up)
-  stop <i>                               Shut an instance down
+  rename <i> <name>                      Rename an instance
+  start <i> [--cold] [--snapshot NAME] [--wait]
+                                         Boot an instance: resumes where it stopped, --cold does a full boot,
+                                         --snapshot resumes a saved state (--wait blocks until Android is up)
+  stop <i>                               Shut an instance down (its state is kept for the next start)
+  snapshot list|save|load|delete <i> [NAME]
+                                         Saved states: save the running game, resume it later
   presets                                List resolution and device presets
   images                                 List installed Android system images
 
@@ -98,43 +103,25 @@ func printJSON<T: Encodable>(_ value: T) {
     print(String(decoding: try! e.encode(value), as: UTF8.self))
 }
 
-/// Bundled keymaps: next to the binary, in the build tree, or in KESTREL_HOME/keymaps.
-func keymapDirs(_ paths: KestrelPaths) -> [URL] {
-    let exe = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent()
-    return [
-        paths.keymaps,
-        exe.appendingPathComponent("keymaps"),
-        exe.appendingPathComponent("../share/kestrel/keymaps").standardized,
-        exe.appendingPathComponent("../../keymaps").standardized,
-        exe.appendingPathComponent("../../../keymaps").standardized,
-        URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("keymaps"),
-    ]
+func keymapLibrary(_ paths: KestrelPaths) -> KeymapLibrary {
+    KeymapLibrary(userDir: paths.keymaps,
+                  bundledDirs: KeymapLibrary.bundledDirs(executable: URL(fileURLWithPath: CommandLine.arguments[0]),
+                                                         cwd: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)))
 }
 
 func allKeymaps(_ paths: KestrelPaths) -> [(URL, Keymap)] {
-    var seen = Set<String>()
-    var out: [(URL, Keymap)] = []
-    for dir in keymapDirs(paths) {
-        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
-        for f in files.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) where f.pathExtension == "json" {
-            guard !seen.contains(f.lastPathComponent), let km = try? Keymap.load(f) else { continue }
-            seen.insert(f.lastPathComponent)
-            out.append((f, km))
-        }
-    }
-    return out
+    keymapLibrary(paths).all().map { ($0.url, $0.keymap) }
 }
 
 func resolveKeymap(_ ref: String, _ paths: KestrelPaths) -> (URL, Keymap) {
-    let direct = URL(fileURLWithPath: ref)
-    if FileManager.default.fileExists(atPath: direct.path) {
-        do { return (direct, try Keymap.load(direct)) } catch { fail("cannot read keymap \(ref): \(error)") }
+    do {
+        let e = try keymapLibrary(paths).resolve(ref)
+        return (e.url, e.keymap)
+    } catch KeymapLibraryError.notFound {
+        fail("keymap '\(ref)' not found (try `kestrel keymap list`)")
+    } catch {
+        fail("cannot read keymap \(ref): \(error)")
     }
-    let name = ref.hasSuffix(".json") ? String(ref.dropLast(5)) : ref
-    if let hit = allKeymaps(paths).first(where: { $0.0.deletingPathExtension().lastPathComponent == name || $0.1.package == ref }) {
-        return hit
-    }
-    fail("keymap '\(ref)' not found (try `kestrel keymap list`)")
 }
 
 /// The keymap for play/replay: --keymap, else the instance's saved one. Must validate.
@@ -260,13 +247,60 @@ case "config":
         printJSON(inst.settings)
     }
 
-case "start":
+case "rename":
     let a = Args(rest, valued: [])
+    let store = storeOrFail()
+    run {
+        var inst = try store.load(a.index())
+        let name = a.positional.dropFirst().joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        if name.isEmpty { fail("missing new name") }
+        inst.settings.name = name
+        try store.save(inst)
+        print("Renamed instance \(inst.index) to \(name)")
+    }
+
+case "snapshot":
+    let sub = rest.first ?? "list"
+    let a = Args(rest.dropFirst(), valued: [])
+    let store = storeOrFail()
+    let snaps = Snapshots(store: store)
+    run {
+        let i = a.index()
+        switch sub {
+        case "list":
+            let list = snaps.list(i)
+            if list.isEmpty { print("No snapshots. Save one with: kestrel snapshot save \(i) NAME") }
+            let fmt = DateFormatter()
+            fmt.dateStyle = .short
+            fmt.timeStyle = .short
+            for s in list {
+                let mb = Double(s.sizeBytes) / 1_048_576
+                print("\(s.name)  \(s.date.map(fmt.string(from:)) ?? "-")  \(String(format: "%.0f MB", mb))")
+            }
+        case "save":
+            let name = a.required(1, "snapshot name")
+            try snaps.save(i, name: name)
+            print("Saved snapshot '\(name)'")
+        case "load":
+            let name = a.required(1, "snapshot name")
+            try snaps.load(i, name: name)
+            print("Restored snapshot '\(name)'")
+        case "delete":
+            let name = a.required(1, "snapshot name")
+            try snaps.delete(i, name: name)
+            print("Deleted snapshot '\(name)'")
+        default:
+            fail("unknown snapshot subcommand '\(sub)' (list, save, load, delete)")
+        }
+    }
+
+case "start":
+    let a = Args(rest, valued: ["snapshot"])
     let store = storeOrFail()
     let launcher = Launcher(store: store)
     run {
         let i = a.index()
-        let pid = try launcher.start(i, coldBoot: a.flags.contains("cold"))
+        let pid = try launcher.start(i, coldBoot: a.flags.contains("cold"), snapshot: a.options["snapshot"])
         print("Instance \(i) started (pid \(pid)), log: \(launcher.logFile(i).path)")
         if a.flags.contains("wait") {
             print("Waiting for Android to boot…")

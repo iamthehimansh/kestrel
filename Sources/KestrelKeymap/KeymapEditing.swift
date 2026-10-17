@@ -99,6 +99,90 @@ public struct KeymapEditor: Sendable {
         keymap.controls.remove(at: index)
     }
 
+    /// Replaces the whole keymap (after editing its settings in a form).
+    public mutating func replace(with keymap: Keymap) { self.keymap = keymap }
+
+    /// Replaces one control (after editing it in an inspector).
+    public mutating func update(_ index: Int, to control: Control) {
+        guard keymap.controls.indices.contains(index) else { return }
+        keymap.controls[index] = control
+    }
+
+    /// Every key some control or mode switch already uses.
+    public var usedKeys: Set<String> {
+        Set(keymap.controls.flatMap(\.keys) + [keymap.resolvedLookToggle, keymap.resolvedFreeCursor])
+    }
+
+    /// The first letter, digit or function key nothing uses yet.
+    public func freeKey(excluding extra: Set<String> = []) -> String? {
+        let used = usedKeys.union(extra)
+        return (KeyNames.letters + KeyNames.digits + (1...12).map { "F\($0)" }).first { !used.contains($0) }
+    }
+
+    public static let addableTypes = ["tap", "turbo", "joystick", "look", "skill", "swipe", "combo", "scroll", "pinch", "macro"]
+
+    /// Adds a control of `type` at `p`, choosing keys nothing uses yet. Returns its index, or
+    /// nil for an unknown type, a second look control, or when no free keys are left.
+    @discardableResult
+    public mutating func addControl(_ type: String, at p: NPoint) -> Int? {
+        let at = p.clamped
+        let used = usedKeys
+        func freeAll(_ preferred: [String]) -> Bool { preferred.allSatisfy { !used.contains($0) } }
+        func pair(_ preferred: (String, String)) -> (String, String)? {
+            if freeAll([preferred.0, preferred.1]) { return preferred }
+            guard let a = freeKey(), let b = freeKey(excluding: [a]) else { return nil }
+            return (a, b)
+        }
+        let control: Control
+        switch type {
+        case "tap":
+            guard let k = freeKey() else { return nil }
+            control = .tap(TapControl(key: k, at: at))
+        case "turbo":
+            guard let k = freeKey() else { return nil }
+            control = .turbo(TurboControl(key: k, at: at, intervalMs: 100, mode: nil, label: nil))
+        case "joystick":
+            var keys: [String?] = [nil, nil, nil, nil]
+            if freeAll(["W", "S", "A", "D"]) { keys = ["W", "S", "A", "D"] }
+            else if freeAll(["Up", "Down", "Left", "Right"]) { keys = ["Up", "Down", "Left", "Right"] }
+            control = .joystick(JoystickControl(up: keys[0], down: keys[1], left: keys[2], right: keys[3], stick: "left",
+                                                center: at, radius: 0.065, walkKey: nil, walkScale: nil,
+                                                sprintKey: nil, sprintScale: nil))
+        case "look":
+            guard !keymap.controls.contains(where: { if case .look = $0 { return true }; return false }) else { return nil }
+            control = .look(LookControl(center: at, radius: 0.14, sensitivity: 1, stick: "right", stickSpeed: 1000,
+                                        scopeKey: nil, scopeSensitivity: nil))
+        case "skill":
+            guard let k = freeKey() else { return nil }
+            control = .skill(SkillControl(key: k, at: at, radius: 0.07, quickCast: nil, cancelKey: nil, cancelAt: nil,
+                                          mode: nil, label: nil))
+        case "swipe":
+            guard let k = freeKey() else { return nil }
+            control = .swipe(SwipeControl(key: k, from: at, to: NPoint(at.x, at.y - 0.2).clamped, durationMs: 120,
+                                          mode: nil, label: nil))
+        case "combo":
+            guard let k = freeKey() else { return nil }
+            control = .combo(ComboControl(key: k, points: [at, NPoint(at.x + 0.06, at.y).clamped], intervalMs: 100,
+                                          mode: nil, label: nil))
+        case "scroll":
+            guard let (up, down) = pair(("WheelUp", "WheelDown")) else { return nil }
+            control = .scroll(ScrollControl(at: at, distance: 0.15, durationMs: 120,
+                                            upKey: up == "WheelUp" ? nil : up, downKey: down == "WheelDown" ? nil : down,
+                                            mode: nil))
+        case "pinch":
+            guard let (i, o) = pair(("Equal", "Minus")) else { return nil }
+            control = .pinch(PinchControl(inKey: i, outKey: o, center: at, spread: 0.18, durationMs: 180, mode: nil))
+        case "macro":
+            guard let k = freeKey() else { return nil }
+            let script = String(format: "tap %.3f %.3f", at.x, at.y)
+            control = .macro(MacroControl(key: k, script: script, loop: nil, mode: nil, label: nil))
+        default:
+            return nil
+        }
+        keymap.controls.append(control)
+        return keymap.controls.count - 1
+    }
+
     private func points(_ c: Control) -> [NPoint] {
         switch c {
         case .tap(let v): return [v.at]
