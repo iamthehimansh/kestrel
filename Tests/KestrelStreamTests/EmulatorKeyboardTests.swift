@@ -17,6 +17,21 @@ final class EmulatorKeyboardTests: XCTestCase {
         }
     }
 
+    func testBulkASCIIExpandsIntoOrderedSingleCharacterKeypresses() throws {
+        let text = "Kestrel keyboard 4"
+        let presses = try EmulatorKeyboardRequest(text: text).individualKeypresses
+        XCTAssertEqual(presses.count, 18)
+        XCTAssertEqual(presses.map { $0.message.text }, text.map(String.init))
+        XCTAssertTrue(presses.allSatisfy { $0.message.text.utf8.count == 1 && $0.message.key.isEmpty })
+        let ascii = String((32...126).map { Character(UnicodeScalar($0)!) })
+        XCTAssertEqual(try EmulatorKeyboardRequest(text: ascii).individualKeypresses.map { $0.message.text }.joined(), ascii)
+        XCTAssertEqual(try EmulatorKeyboardRequest(text: String(repeating: "a", count: 256)).individualKeypresses.count, 256)
+        let backspace = EmulatorKeyboardRequest(key: .backspace).individualKeypresses
+        XCTAssertEqual(backspace.count, 1)
+        XCTAssertEqual(backspace[0].message.key, "Backspace")
+        XCTAssertEqual(backspace[0].message.text, "")
+    }
+
     func testEditingKeysAreCompletePressesWithNoText() {
         for key in EmulatorKeyboardRequest.EditingKey.allCases {
             let request = EmulatorKeyboardRequest(key: key)

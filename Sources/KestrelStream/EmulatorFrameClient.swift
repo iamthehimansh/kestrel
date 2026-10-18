@@ -161,11 +161,18 @@ public struct EmulatorFrameClient: Sendable {
     }
 
     public func sendKey(_ request: EmulatorKeyboardRequest, credential: String) async throws {
+        try Task.checkCancellation()
         let metadata = try metadata(credential)
         do {
             try await withGRPCClient(transport: endpoint.transport()) { client in
                 let stub = Android_Emulation_Control_EmulatorController.Client(wrapping: client)
-                _ = try await stub.sendKey(request.message, metadata: metadata, options: request.options)
+                for keypress in request.individualKeypresses {
+                    try Task.checkCancellation()
+                    _ = try await stub.sendKey(keypress.message, metadata: metadata, options: keypress.options)
+                    // Match the bounded single-key diagnostic path; cancellation during
+                    // this gap prevents the next character, but cannot undo a sent key.
+                    try await Task.sleep(for: .milliseconds(30))
+                }
             }
         } catch { throw sanitized(error) }
     }

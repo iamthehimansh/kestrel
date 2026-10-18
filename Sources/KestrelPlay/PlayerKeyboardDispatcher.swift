@@ -34,12 +34,14 @@ public final class PlayerKeyboardDispatcher {
     @discardableResult
     public func submit(_ request: EmulatorKeyboardRequest, isAuthorized: @escaping () -> Bool) -> Bool {
         guard !closed, isAuthorized() else { return false }
-        guard pending.count < capacity else {
+        let keypresses = request.individualKeypresses
+        // Reserve the whole batch before enqueueing: never accept a truncated prefix.
+        guard keypresses.count <= capacity - pending.count else {
             close()
             onError(PlayerKeyboardDispatchError.overflow)
             return false
         }
-        pending.append(Pending(request: request, isAuthorized: isAuthorized))
+        pending.append(contentsOf: keypresses.map { Pending(request: $0, isAuthorized: isAuthorized) })
         startWorker()
         return true
     }

@@ -235,6 +235,14 @@ final class AppModel: ObservableObject {
                 self?.busy[i] = nil
                 self?.states[i] = .running
             }
+            player.onTextInputFocused = { [weak self] in self?.stopKeymapping(i) }
+            player.player.onKeymappingChanged = { [weak self] enabled in
+                guard let self else { return }
+                if enabled { self.startKeymapping(i) } else { self.stopKeymapping(i) }
+            }
+            player.player.onHintOpacityChanged = { [weak self] value in
+                self?.sessions[i]?.setHintOpacity(value)
+            }
             player.onEditKeymap = { [weak self, weak player] in
                 guard let self, let player else { return }
                 self.stopKeymapping(i)

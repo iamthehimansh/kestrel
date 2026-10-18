@@ -87,7 +87,7 @@ struct InstanceHeader: View {
             case .booting:
                 Button {} label: { Label("Starting…", systemImage: "hourglass") }.disabled(true)
             case .running:
-                KeymapToggle(index: index)
+                if model.nativePlayers[index] == nil { KeymapToggle(index: index) }
                 Button { model.saveScreenshot(index) } label: { Label("Screenshot", systemImage: "camera") }
                     .help("Save a screenshot to the Desktop")
                 Button { model.stop(index) } label: { Label("Stop", systemImage: "stop.fill") }

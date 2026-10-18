@@ -27,14 +27,17 @@ public final class NativePlayerSessionController {
             throw KestrelError.runtime("Stop keymapping or playback before editing controls")
         }
         let size = try keymapInputSize()
+        diagnosticKeyboard?.invalidate()
         player.showKeymapEditor(keymap, aspect: Double(size.width) / Double(size.height),
             save: save, dismissed: { [weak self] in self?.enableDirectPointer() })
     }
-    /// Called synchronously before text authorization; the owner must stop its gameplay driver.
+    /// Called synchronously before text authorization. The owner must stop its gameplay
+    /// driver, remove its key monitor, and releaseKeymapInput() before returning.
     public var onTextInputFocused: (() -> Void)?
     private var diagnosticKeyboard: PlayerKeyboardFocusCoordinator?
+    private var keyboardObserver: Task<Void, Never>?
 
-    /// Explicit diagnostic hook; production never enables this until guest verification passes.
+    /// Injection hook shared by production wiring and deterministic diagnostics.
     func configureDiagnosticKeyboard(observe: @escaping () async throws -> String?,
                                      send: @escaping (EmulatorKeyboardRequest) async throws -> Void) {
         diagnosticKeyboard?.close()
@@ -43,14 +46,14 @@ public final class NativePlayerSessionController {
                 guard let self else { return false }
                 return !self.stopping && !self.player.isEditingKeymap && !self.applyingOrientation
                     && self.rotationTask == nil && self.replayTask == nil && !self.player.commandBusy
-                    && self.keymapLease == nil && self.keymapWindowState().focused
+                    && self.keymapWindowState().focused
             }, beforeTyping: { [weak self] in
                 guard let self else { return false }
                 self.onTextInputFocused?()
                 return self.keymapLease == nil
             }, send: send, onError: { [weak self] error in self?.onCommandError?(error) })
         player.frameView.setKeyboardHandler({ [weak self] event in
-            guard let self else { return false }
+            guard let self, self.diagnosticKeyboard?.isTextInputFocused == true else { return false }
             do {
                 guard let request = try PlayerKeyboardEvent.request(for: event) else { return false }
                 return self.diagnosticKeyboard?.submit(request) ?? false
@@ -63,6 +66,34 @@ public final class NativePlayerSessionController {
 
     func refreshDiagnosticKeyboard() async {
         await diagnosticKeyboard?.refresh()
+    }
+
+    private func startKeyboardObserver(client: EmulatorFrameClient) {
+        if diagnosticKeyboard == nil {
+            let adb = AndroidSDK(root: sdkRoot).adb
+            let deviceSerial = serial
+            let session = self.session
+            configureDiagnosticKeyboard(observe: {
+                let query = Task.detached(priority: .utility) {
+                    try PlayerGuestTextObserver.inspect(adb: adb, serial: deviceSerial)?.editorID
+                }
+                return try await withTaskCancellationHandler {
+                    try await query.value
+                } onCancel: {
+                    query.cancel()
+                }
+            }, send: { request in
+                try await client.sendKey(request, credential: session.token(for: .sendKey))
+            })
+        }
+        keyboardObserver = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self, !self.stopping else { return }
+                await self.refreshDiagnosticKeyboard()
+                do { try await Task.sleep(for: .milliseconds(100)) }
+                catch { return }
+            }
+        }
     }
 
     private let commands: PlayerCommandDispatcher
@@ -140,6 +171,7 @@ public final class NativePlayerSessionController {
                 try await applyObservedOrientation(orientation)
                 enableDirectPointer()
                 startOrientationObserver()
+                startKeyboardObserver(client: client)
                 onReady?()
                 while !Task.isCancelled {
                     // Unary screenshots and each streaming RPC have independent sequence counters.
@@ -165,6 +197,8 @@ public final class NativePlayerSessionController {
             if let rotationTask { await rotationTask.value }
             if let orientationObserver { await orientationObserver.value }
             orientationObserver = nil
+            if let keyboardObserver { await keyboardObserver.value }
+            keyboardObserver = nil
             commands.close()
             player.frameView.setPointerHandler(nil)
             player.disconnect(message: failure == nil ? "Session closed" : "Player connection failed")
@@ -228,6 +262,7 @@ public final class NativePlayerSessionController {
             throw KestrelError.runtime("Observed display dimensions do not match video")
         }
         guard player.frameView.displayedRotation != orientation.rotation else { return }
+        diagnosticKeyboard?.invalidate()
         applyingOrientation = true
         let wasBusy = player.commandBusy
         player.commandBusy = true
@@ -281,12 +316,14 @@ public final class NativePlayerSessionController {
     }
 
     public func acquireKeymapInput() throws -> TouchSink {
-        guard !stopping, !player.isEditingKeymap, !applyingOrientation, rotationTask == nil, player.isConnected, let touches, keymapLease == nil else {
+        guard !stopping, diagnosticKeyboard?.isTextInputFocused != true,
+              !player.isEditingKeymap, !applyingOrientation, rotationTask == nil, player.isConnected, let touches, keymapLease == nil else {
             throw KestrelError.runtime("Player input is unavailable or already leased")
         }
         guard let frame = player.frameView.screenshotFrame() else {
             throw KestrelError.runtime("No frame available for keymap geometry")
         }
+        diagnosticKeyboard?.invalidate()
         player.frameView.setPointerHandler(nil)
         let lease = PlayerKeymapSink(dispatcher: touches, geometry:
             (player.frameView.displayedRotation, frame.width, frame.height))
@@ -372,6 +409,7 @@ public final class NativePlayerSessionController {
     func rotateDisplay() {
         guard !stopping, !applyingOrientation, rotationTask == nil, !player.commandBusy, player.isConnected,
               keymapLease == nil, replayTask == nil, let touches else { return }
+        diagnosticKeyboard?.invalidate()
         player.commandBusy = true
         player.frameView.setPointerHandler(nil)
         let adb = AndroidSDK(root: sdkRoot).adb
@@ -427,6 +465,7 @@ public final class NativePlayerSessionController {
 
     private func perform(_ action: PlayerWindowAction) {
         guard !stopping else { return }
+        diagnosticKeyboard?.invalidate()
         if action == .keymapping { onEditKeymap?(); return }
         if action == .rotate { rotateDisplay(); return }
         if action == .screenshot {
@@ -470,6 +509,7 @@ public final class NativePlayerSessionController {
     private func beginStopping() {
         guard !stopping else { return }
         stopping = true
+        keyboardObserver?.cancel()
         diagnosticKeyboard?.close()
         diagnosticKeyboard = nil
         player.frameView.setKeyboardHandler(nil)

@@ -35,6 +35,13 @@ private final class WindowProbe: NSObject, NSApplicationDelegate {
                 }
                 return
             }
+            if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--sidebar-check" {
+                Task {
+                    do { try await checkSidebar(to: URL(fileURLWithPath: CommandLine.arguments[2])); exit(0) }
+                    catch { log("Sidebar verification failed: \(error)"); exit(1) }
+                }
+                return
+            }
             if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--overlay-check" {
                 Task {
                     do { try await checkOverlay(to: URL(fileURLWithPath: CommandLine.arguments[2])); exit(0) }
@@ -189,6 +196,69 @@ private final class WindowProbe: NSObject, NSApplicationDelegate {
         window.deminiaturize(nil)
         try await waitFor { !window.isMiniaturized }
         log("[5/5] Minimize/restore passed; SUMMARY: native window controls passed")
+    }
+
+    func checkSidebar(to directory: URL) async throws {
+        log("[1/3] Open offline sidebar fixture; no Android commands")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        guard let gpu = MTLCreateSystemDefaultDevice() else { throw KestrelError.runtime("No Metal device") }
+        let player = try PlayerWindowController(title: "Sidebar verification", device: gpu)
+        defer { player.close() }
+        guard let window = player.window, let content = window.contentView else { throw KestrelError.runtime("No window") }
+        window.setContentSize(NSSize(width: 1000, height: 620))
+        player.showWindow(nil)
+        let stream = player.beginConnection()
+        var pixels = Data()
+        pixels.reserveCapacity(640 * 360 * 4)
+        for index in 0..<(640 * 360) {
+            let red = UInt8(20 + (index % 640) / 8)
+            let green = UInt8(30 + (index / 640) / 4)
+            pixels.append(contentsOf: [red, green, 80, 255])
+        }
+        let frame = try PlayerFrame(width: 640, height: 360, bytesPerRow: 2560,
+                                   sequence: 1, timestampMicroseconds: 1, rgba: pixels)
+        _ = player.frameView.mailbox.offer(frame, stream: stream)
+        var requests: [Bool] = []
+        player.onKeymappingChanged = { enabled in requests.append(enabled); player.setKeymappingEnabled(enabled) }
+        defer { player.onKeymappingChanged = nil }
+        @MainActor func descendants(_ root: NSView) -> [NSView] { [root] + root.subviews.flatMap { descendants($0) } }
+        content.layoutSubtreeIfNeeded()
+        guard let button = descendants(content).compactMap({ $0 as? NSButton }).first(where: { $0.title == "Keymapping controls" }) else {
+            throw KestrelError.runtime("Missing sidebar control")
+        }
+        button.performClick(nil)
+        try await Task.sleep(for: .milliseconds(400))
+        guard let popover = NSApp.windows.first(where: { candidate in
+            guard let view = candidate.contentView else { return false }
+            return descendants(view).contains { ($0 as? NSButton)?.title == "Enable keymapping" }
+        }), let popoverContent = popover.contentView,
+              let toggle = descendants(popoverContent).compactMap({ $0 as? NSButton }).first(where: { $0.title == "Enable keymapping" }),
+              let slider = descendants(popoverContent).compactMap({ $0 as? NSSlider }).first else {
+            throw KestrelError.runtime("Sidebar popover missing controls")
+        }
+        log("[2/3] Exercise mapping toggle and 0/50/100 percent hint visibility")
+        toggle.performClick(nil)
+        guard player.keymappingEnabled else { throw KestrelError.runtime("Toggle did not enable") }
+        for value in [0.0, 0.5, 1.0] {
+            slider.doubleValue = value
+            slider.sendAction(slider.action, to: slider.target)
+            guard player.hintOpacity == value, player.keymappingEnabled, player.frameView.alphaValue == 1,
+                  descendants(popoverContent).contains(where: { ($0 as? NSTextField)?.stringValue == "Hint visibility: \(Int(value * 100))%" }) else {
+                throw KestrelError.runtime("Opacity affected mapping/video or label was wrong")
+            }
+        }
+        slider.doubleValue = 0.5
+        slider.sendAction(slider.action, to: slider.target)
+        try await Task.sleep(for: .milliseconds(200))
+        log("[3/3] Capture sidebar popover and verify disable")
+        let number = popover.windowNumber
+        try await Task.detached {
+            try PlayerCommandProcess.run(executable: URL(fileURLWithPath: "/usr/sbin/screencapture"),
+                arguments: ["-x", "-o", "-l", String(number), directory.appendingPathComponent("sidebar-controls.png").path], timeout: 5)
+        }.value
+        toggle.performClick(nil)
+        guard !player.keymappingEnabled, requests == [true, false] else { throw KestrelError.runtime("Disable failed") }
+        log("SUMMARY: real sidebar controls exercised; screenshot saved; no VM or user app changed")
     }
 
     func checkOverlay(to directory: URL) async throws {

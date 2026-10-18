@@ -82,6 +82,12 @@ final class PlayerKeyboardFocusCoordinator {
         }
     }
 
+    /// A synchronous gate for gameplay lease acquisition and event translation.
+    /// Reading it does not refresh or extend the guest evidence lifetime.
+    var isTextInputFocused: Bool {
+        !closed && hostAllowsTyping() && focus.permit(at: clock()) != nil
+    }
+
     @discardableResult
     func submit(_ request: EmulatorKeyboardRequest) -> Bool {
         guard !closed, hostAllowsTyping(), let permit = focus.permit(at: clock()) else {

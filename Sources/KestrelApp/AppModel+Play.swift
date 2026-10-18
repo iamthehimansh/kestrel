@@ -151,7 +151,7 @@ extension AppModel {
         guard let store, let inst = instance(i) else { return }
         guard state(i) == .running else { errorMessage = "Start the instance first."; return }
         guard let km = playKeymap(i) else { errorMessage = "Choose a keymap in the Controls tab first."; return }
-        guard sessions[i] == nil else { return }
+        guard sessions[i] == nil, busy[i] == nil else { return }
         busy[i] = "Starting key mapping…"
         let report: (String) -> Void = { [weak self] msg in self?.sessionStatus[i] = msg }
         // Let the busy label draw: the session pushes touchd and opens the touch channel.
@@ -176,6 +176,12 @@ extension AppModel {
                     session = try KeymapSession(instance: inst, store: store, keymap: km, record: record, onStatus: report)
                 }
                 self.sessions[i] = session
+                if #available(macOS 15, *), let player = self.nativePlayers[i] as? NativePlayerSessionController {
+                    MainActor.assumeIsolated {
+                        player.player.setKeymappingEnabled(true)
+                        session.setHintOpacity(player.player.hintOpacity)
+                    }
+                }
                 self.activeSessions.insert(i)
                 if record { self.recordingSessions.insert(i) }
                 self.sessionStatus[i] = "Key mapping on with “\(km.name)”. Click the game window; \(KeyNames.shortLabel(km.resolvedLookToggle)) toggles aim, F12 hides hints."
@@ -186,6 +192,9 @@ extension AppModel {
     }
 
     func stopKeymapping(_ i: Int) {
+        if #available(macOS 15, *), let player = nativePlayers[i] as? NativePlayerSessionController {
+            MainActor.assumeIsolated { player.player.setKeymappingEnabled(false) }
+        }
         guard let session = sessions.removeValue(forKey: i) else { return }
         let recording = session.stop()
         if #available(macOS 15, *), let player = nativePlayers[i] as? NativePlayerSessionController {

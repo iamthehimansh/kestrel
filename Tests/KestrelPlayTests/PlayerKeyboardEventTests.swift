@@ -19,6 +19,12 @@ final class PlayerKeyboardEventTests: XCTestCase {
         }
     }
 
+    func testMultiCharacterEventUsesTheSameOrderedASCIIExpansion() throws {
+        let text = "Kestrel keyboard 4"
+        let request = try XCTUnwrap(PlayerKeyboardEvent.request(for: event(0, text: text)))
+        XCTAssertEqual(request.individualKeypresses.map { $0.message.text }, text.map(String.init))
+    }
+
     func testEditingKeysUseNamedPresses() throws {
         let keys: [(UInt16, String)] = [(0x33, "Backspace"), (0x75, "Delete"), (0x24, "Enter"),
             (0x4C, "Enter"), (0x30, "Tab"), (0x35, "Escape"), (0x7B, "ArrowLeft"),

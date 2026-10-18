@@ -44,6 +44,44 @@ public final class PlayerWindowController: NSWindowController, NSWindowDelegate 
     public var commandBusy = false { didSet { updateControls() } }
     public var onDisconnect: (() -> Void)?
     public var onClose: (() -> Void)?
+    public var onKeymappingChanged: ((Bool) -> Void)? { didSet { updateControls() } }
+    public var onHintOpacityChanged: ((Double) -> Void)?
+    public private(set) var keymappingEnabled = false
+    public private(set) var hintOpacity: Double = 1
+    private var mappingButton: NSButton?
+    private let mappingPopover = NSPopover()
+    private let mappingSwitch = NSButton(checkboxWithTitle: "Enable keymapping", target: nil, action: nil)
+    private let opacitySlider = NSSlider(value: 1, minValue: 0, maxValue: 1, target: nil, action: nil)
+    private let opacityLabel = NSTextField(labelWithString: "Hint visibility: 100%")
+
+    public func setKeymappingEnabled(_ enabled: Bool) {
+        keymappingEnabled = enabled
+        mappingSwitch.state = enabled ? .on : .off
+        mappingButton?.contentTintColor = enabled ? .systemGreen : .secondaryLabelColor
+    }
+
+    public func setHintOpacity(_ value: Double) {
+        guard value.isFinite else { return }
+        hintOpacity = min(1, max(0, value))
+        opacitySlider.doubleValue = hintOpacity
+        opacityLabel.stringValue = "Hint visibility: \(Int((hintOpacity * 100).rounded()))%"
+        onHintOpacityChanged?(hintOpacity)
+    }
+
+    @objc private func mappingRequested(_ sender: NSButton) {
+        let requested = sender.state == .on
+        sender.state = keymappingEnabled ? .on : .off
+        guard isConnected, !isEditingKeymap, !commandBusy else { return }
+        onKeymappingChanged?(requested)
+    }
+
+    @objc private func opacityChanged(_ sender: NSSlider) { setHintOpacity(sender.doubleValue) }
+
+    @objc private func showMappingControls(_ sender: NSButton) {
+        if mappingPopover.isShown { mappingPopover.close(); return }
+        mappingPopover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minX)
+    }
+
     private var closeNotified = false
     private let panel = NSStackView()
     private let placeholder = NSTextField(labelWithString: "Waiting for a video connection")
@@ -206,6 +244,8 @@ public final class PlayerWindowController: NSWindowController, NSWindowDelegate 
 
     private func updateControls() {
         precondition(Thread.isMainThread)
+        mappingSwitch.isEnabled = isConnected && !isEditingKeymap && !commandBusy && onKeymappingChanged != nil
+        mappingButton?.isEnabled = isConnected && !isEditingKeymap && !commandBusy
         for button in actionButtons {
             let supported = PlayerWindowAction(rawValue: button.tag).map { supportedActions.contains($0) } ?? false
             button.isEnabled = isConnected && !isEditingKeymap && !commandBusy && onAction != nil && supported
@@ -334,6 +374,26 @@ public final class PlayerWindowController: NSWindowController, NSWindowDelegate 
             panel.addArrangedSubview(button)
             actionButtons.append(button)
         }
+        let mapping = chromeButton("Keymapping controls", symbol: "switch.2", action: #selector(showMappingControls(_:)))
+        mappingButton = mapping
+        panel.addArrangedSubview(mapping)
+        mappingSwitch.target = self
+        mappingSwitch.action = #selector(mappingRequested(_:))
+        opacitySlider.target = self
+        opacitySlider.action = #selector(opacityChanged(_:))
+        opacitySlider.isContinuous = true
+        opacitySlider.setAccessibilityLabel("Keymap hint visibility")
+        opacitySlider.widthAnchor.constraint(equalToConstant: 220).isActive = true
+        let controls = NSStackView(views: [mappingSwitch, opacityLabel, opacitySlider])
+        controls.orientation = .vertical
+        controls.alignment = .leading
+        controls.spacing = 12
+        controls.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        let popoverController = NSViewController()
+        popoverController.view = controls
+        mappingPopover.contentViewController = popoverController
+        mappingPopover.contentSize = NSSize(width: 252, height: 128)
+        mappingPopover.behavior = .transient
         let body = NSStackView(views: [display, panel])
         body.orientation = .horizontal
         body.distribution = .fill

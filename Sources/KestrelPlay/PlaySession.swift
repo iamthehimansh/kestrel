@@ -66,6 +66,7 @@ final class PlayController {
     let consolePort: Int
     private let windowProvider: (() -> (frame: CGRect?, focused: Bool))?
     private var nativePointerDown = false
+    func setHintOpacity(_ value: Double) { overlay?.setOpacity(value) }
     /// Short status lines for whoever hosts the session (stdout for the CLI, the app's UI).
     var onStatus: ((String) -> Void)?
     private var tap: CFMachPort?
@@ -419,6 +420,11 @@ final class HintOverlay {
         window.hasShadow = false
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         window.contentView = view
+    }
+
+    func setOpacity(_ value: Double) {
+        guard value.isFinite else { return }
+        window.alphaValue = min(1, max(0, value))
     }
 
     func toggleHidden() { hidden.toggle(); view.needsDisplay = true; if hidden { window.orderOut(nil) } }

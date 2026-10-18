@@ -63,6 +63,7 @@ public final class KeymapSession {
     }
 
     public var isRecording: Bool { recorder != nil }
+    public func setHintOpacity(_ value: Double) { controller.setHintOpacity(value) }
 
     /// Stops listening, lifts every finger and closes the touch channel. Returns the
     /// recording when the session was recording.

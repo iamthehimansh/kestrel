@@ -27,6 +27,18 @@ public struct EmulatorKeyboardRequest: Sendable {
 
     public init(key: EditingKey) { self.key = key; text = nil }
 
+    /// The emulator can acknowledge bulk text without inserting it. Always send
+    /// printable ASCII as individual keypresses, in order, never as shell input.
+    public var individualKeypresses: [EmulatorKeyboardRequest] {
+        guard let text else { return [self] }
+        return text.map { EmulatorKeyboardRequest(asciiCharacter: $0) }
+    }
+
+    private init(asciiCharacter: Character) {
+        text = String(asciiCharacter)
+        key = nil
+    }
+
     var message: Android_Emulation_Control_KeyboardEvent {
         var value = Android_Emulation_Control_KeyboardEvent()
         value.eventType = .keypress

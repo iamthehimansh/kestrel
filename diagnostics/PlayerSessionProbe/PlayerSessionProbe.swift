@@ -143,6 +143,12 @@ struct PlayerSessionProbe {
                         return nil
                     }
                     let parsed = PlayerGuestTextFocus.parse(output)
+                    // Also require the production observer's before/after window validation
+                    // and 500ms budget. Parser-only success is not production typing proof.
+                    let validated = try PlayerGuestTextObserver.inspect(adb: adb, serial: serial)
+                    guard parsed == validated else {
+                        throw KestrelError.runtime("Production observer did not confirm the parsed editor")
+                    }
                     let clientCount = output.components(separatedBy: .newlines).filter {
                         $0.hasPrefix("Input method client state for ")
                     }.count
@@ -167,11 +173,10 @@ struct PlayerSessionProbe {
                 guard ready?["has_window_focus"] as? Bool == true, ready?["focused"] as? Bool == true else {
                     throw KestrelError.runtime("Test field lacks window focus; no text sent")
                 }
-                // Diagnostic experiment only: compare separate key events with the failed bulk request.
-                for character in "Kestrel keyboard 4" {
-                    try await client.sendKey(EmulatorKeyboardRequest(text: String(character)), credential: session.token(for: .sendKey))
-                    try await Task.sleep(for: .milliseconds(30))
-                }
+                // Exercise the shipping transport's ordered per-character expansion,
+                // not a separate diagnostic-only loop that could hide bulk text loss.
+                try await client.sendKey(EmulatorKeyboardRequest(text: "Kestrel keyboard 4"),
+                                         credential: session.token(for: .sendKey))
                 try await reportStage("prefix")
                 try await client.sendKey(EmulatorKeyboardRequest(text: "3"), credential: session.token(for: .sendKey))
                 try await reportStage("append")
