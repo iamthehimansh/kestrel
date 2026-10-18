@@ -1,0 +1,48 @@
+// Wire-compatible player subset of Android Emulator's emulator_controller.proto.
+// Field numbers and RPC names follow the installed Android SDK protocol.
+// Android Open Source Project protocol is Apache-2.0 licensed; see THIRD_PARTY_NOTICES.md.
+syntax = "proto3";
+package android.emulation.control;
+
+service EmulatorController {
+  rpc getScreenshot(ImageFormat) returns (Image);
+  rpc streamScreenshot(ImageFormat) returns (stream Image);
+  rpc sendKey(KeyboardEvent) returns (Empty);
+}
+
+message ImageFormat {
+  enum ImgFormat { PNG = 0; RGBA8888 = 1; RGB888 = 2; }
+  ImgFormat format = 1;
+  Rotation rotation = 2;
+  // Alternate transport and folded-display metadata are not consumed yet.
+  reserved 6, 7, 8;
+  uint32 width = 3;
+  uint32 height = 4;
+  uint32 display = 5;
+}
+
+message Rotation {
+  enum SkinRotation { PORTRAIT = 0; LANDSCAPE = 1; REVERSE_PORTRAIT = 2; REVERSE_LANDSCAPE = 3; }
+  SkinRotation rotation = 1;
+  reserved 2, 3, 4;
+}
+
+message Image {
+  ImageFormat format = 1;
+  reserved 2, 3;
+  bytes image = 4;
+  uint32 seq = 5;
+  uint64 timestampUs = 6;
+}
+
+message Empty {}
+
+message KeyboardEvent {
+  enum KeyCodeType { Usb = 0; Evdev = 1; XKB = 2; Win = 3; Mac = 4; }
+  enum KeyEventType { keydown = 0; keyup = 1; keypress = 2; }
+  KeyCodeType codeType = 1;
+  KeyEventType eventType = 2;
+  int32 keyCode = 3;
+  string key = 4;
+  string text = 5;
+}

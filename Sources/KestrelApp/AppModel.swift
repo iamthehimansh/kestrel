@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Metal
 import KestrelCore
 import KestrelKeymap
 import KestrelPlay
@@ -41,6 +42,10 @@ final class AppModel: ObservableObject {
     private(set) var store: InstanceStore?
     /// Live key-mapping sessions by instance (managed in AppModel+Play.swift).
     var sessions: [Int: KeymapSession] = [:]
+    // Type-erased storage keeps the legacy macOS 13 path available.
+    var nativePlayers: [Int: AnyObject] = [:]
+    var nativeQuitCompletion: ((Bool) -> Void)?
+    var nativeQuitFailed = false
     private var booting: Set<Int> = []
     private var poll: Timer?
     let work = DispatchQueue(label: "kestrel.app.work", qos: .userInitiated, attributes: .concurrent)
@@ -180,7 +185,12 @@ final class AppModel: ObservableObject {
 
     /// Boots (resuming the last state), cold boots, or resumes a saved snapshot.
     func start(_ i: Int, cold: Bool = false, snapshot: String? = nil) {
-        guard let store else { return }
+        guard let store, nativeQuitCompletion == nil else { return }
+        if #available(macOS 15, *) {
+            MainActor.assumeIsolated { startNative(i, store: store, cold: cold, snapshot: snapshot) }
+            return
+        }
+        guard !booting.contains(i), busy[i] == nil else { return }
         let launcher = Launcher(store: store)
         booting.insert(i)
         busy[i] = snapshot.map { "Resuming “\($0)”…" } ?? (cold ? "Cold booting…" : "Starting…")
@@ -199,8 +209,86 @@ final class AppModel: ObservableObject {
         }
     }
 
+    @available(macOS 15, *)
+    @MainActor
+    private func startNative(_ i: Int, store: InstanceStore, cold: Bool, snapshot: String?) {
+        if let existing = nativePlayers[i] as? NativePlayerSessionController {
+            existing.player.showWindow(nil)
+            return
+        }
+        guard !booting.contains(i), busy[i] == nil else { return }
+        do {
+            guard Launcher(store: store).runningPID(i) == nil else {
+                throw KestrelError.runtime("Stop the externally running instance before opening its native player")
+            }
+            guard let gpu = MTLCreateSystemDefaultDevice() else { throw KestrelError.environment("Metal is unavailable") }
+            let inst = try store.load(i)
+            let port = 8556 + i
+            let player = try NativePlayerSessionController(store: store, index: i, port: port,
+                title: inst.settings.name, width: inst.settings.width, height: inst.settings.height, device: gpu)
+            nativePlayers[i] = player
+            booting.insert(i)
+            states[i] = .booting
+            busy[i] = "Starting native player…"
+            player.onReady = { [weak self] in
+                self?.booting.remove(i)
+                self?.busy[i] = nil
+                self?.states[i] = .running
+            }
+            player.onEditKeymap = { [weak self, weak player] in
+                guard let self, let player else { return }
+                self.stopKeymapping(i)
+                do {
+                    guard let id = self.instance(i)?.settings.keymap, let keymap = self.playKeymap(i) else {
+                        throw KestrelError.invalid("Choose a keymap in the Controls tab first.")
+                    }
+                    try player.editKeymap(keymap) { [weak self] edited in
+                        guard let self else { throw KestrelError.runtime("Instance manager closed") }
+                        try self.library.save(edited, id: id)
+                        if self.editingKeymapID == id {
+                            self.editingKeymap = edited
+                            self.keymapDirty = false
+                        }
+                        self.reloadKeymaps()
+                        self.notice = "Saved keymap “\(edited.name)”"
+                    }
+                } catch { self.errorMessage = "\(error)" }
+            }
+            player.onInputGeometryChanged = { [weak self] in
+                self?.stopKeymapping(i)
+                self?.sessionStatus[i] = "Display orientation changed; restart keymapping for the new layout."
+            }
+            player.onStopping = { [weak self] in
+                self?.stopKeymapping(i)
+                self?.busy[i] = "Stopping native player…"
+            }
+            player.onCommandError = { [weak self] in self?.errorMessage = "Player command failed: \($0)" }
+            player.onScreenshotSaved = { [weak self] in self?.notice = "Screenshot saved to \($0.lastPathComponent)" }
+            player.onStopped = { [weak self] result in
+                guard let self else { return }
+                self.nativePlayers.removeValue(forKey: i)
+                self.booting.remove(i)
+                self.busy[i] = nil
+                if case .failure(let error) = result {
+                    self.errorMessage = "Native player stopped with an error: \(error)"
+                    self.nativeQuitFailed = true
+                }
+                self.reload()
+                if self.nativePlayers.isEmpty, let completion = self.nativeQuitCompletion {
+                    self.nativeQuitCompletion = nil
+                    completion(!self.nativeQuitFailed)
+                }
+            }
+            player.start(coldBoot: cold, snapshot: snapshot)
+        } catch { errorMessage = "\(error)" }
+    }
+
     func stop(_ i: Int) {
         guard let store else { return }
+        if #available(macOS 15, *), let player = nativePlayers[i] as? NativePlayerSessionController {
+            MainActor.assumeIsolated { player.stop() }
+            return
+        }
         stopKeymapping(i)
         let launcher = Launcher(store: store)
         perform(i, "Stopping…") { try launcher.stop(i) }

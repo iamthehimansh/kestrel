@@ -1,0 +1,4 @@
+{
+  "generate": { "clients": true, "servers": false, "messages": true },
+  "generatedSource": { "accessLevel": "Internal" }
+}

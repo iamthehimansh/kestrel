@@ -158,7 +158,23 @@ extension AppModel {
         DispatchQueue.main.async {
             defer { self.busy[i] = nil }
             do {
-                let session = try KeymapSession(instance: inst, store: store, keymap: km, record: record, onStatus: report)
+                let session: KeymapSession
+                if #available(macOS 15, *), let player = self.nativePlayers[i] as? NativePlayerSessionController {
+                    session = try MainActor.assumeIsolated {
+                        let sink = try player.acquireKeymapInput()
+                        do {
+                            return try KeymapSession(instance: inst, store: store, keymap: km, record: record,
+                                sink: sink, inputSize: try player.keymapInputSize(),
+                                windowProvider: { MainActor.assumeIsolated { player.keymapWindowState() } },
+                                onStatus: report)
+                        } catch {
+                            player.releaseKeymapInput()
+                            throw error
+                        }
+                    }
+                } else {
+                    session = try KeymapSession(instance: inst, store: store, keymap: km, record: record, onStatus: report)
+                }
                 self.sessions[i] = session
                 self.activeSessions.insert(i)
                 if record { self.recordingSessions.insert(i) }
@@ -172,6 +188,9 @@ extension AppModel {
     func stopKeymapping(_ i: Int) {
         guard let session = sessions.removeValue(forKey: i) else { return }
         let recording = session.stop()
+        if #available(macOS 15, *), let player = nativePlayers[i] as? NativePlayerSessionController {
+            MainActor.assumeIsolated { player.releaseKeymapInput() }
+        }
         activeSessions.remove(i)
         recordingSessions.remove(i)
         sessionStatus[i] = nil
@@ -200,6 +219,7 @@ extension AppModel {
 
     /// Plays a recording back through the keymap it was made with (or the current one).
     func replay(_ i: Int, file: URL) {
+        guard busy[i] == nil else { return }
         guard let store, let inst = instance(i) else { return }
         guard state(i) == .running else { errorMessage = "Start the instance first."; return }
         guard sessions[i] == nil else { errorMessage = "Turn key mapping off before replaying."; return }
@@ -209,6 +229,25 @@ extension AppModel {
             return
         }
         let s = inst.settings
+        if #available(macOS 15, *), let player = nativePlayers[i] as? NativePlayerSessionController {
+            do {
+                let recording = try InputRecording.parse(String(contentsOf: file, encoding: .utf8))
+                busy[i] = "Replaying \(file.deletingPathExtension().lastPathComponent)…"
+                try MainActor.assumeIsolated {
+                    try player.replay(recording, keymap: km, sensitivity: s.mouseSensitivity) { [weak self] result in
+                        guard let self else { return }
+                        if case .failure(let error) = result, !(error is CancellationError) {
+                            self.errorMessage = "Replay failed: \(error)"
+                        }
+                        if self.busy[i]?.hasPrefix("Replaying ") == true { self.busy[i] = nil }
+                    }
+                }
+            } catch {
+                busy[i] = nil
+                errorMessage = "Replay failed: \(error)"
+            }
+            return
+        }
         perform(i, "Replaying \(file.deletingPathExtension().lastPathComponent)…") {
             let recording = try InputRecording.parse(String(contentsOf: file, encoding: .utf8))
             let sink = try DeviceSink(adb: ADB(sdk: store.sdk, serial: inst.ports.serial), width: s.width, height: s.height)

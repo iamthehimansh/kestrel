@@ -7,7 +7,8 @@ public struct Launcher {
 
     /// `snapshot` boots from that saved state and leaves it unchanged on exit (the normal
     /// quick-boot state is still saved separately when stopping).
-    public static func arguments(for instance: Instance, avdName: String, coldBoot: Bool = false, snapshot: String? = nil) -> [String] {
+    public static func arguments(for instance: Instance, avdName: String, coldBoot: Bool = false, snapshot: String? = nil,
+                                 player: EmulatorPlayerLaunch? = nil) -> [String] {
         let s = instance.settings
         let p = instance.ports
         var args = [
@@ -21,7 +22,10 @@ public struct Launcher {
             "-netdelay", "none",
             "-netspeed", "full",
         ]
-        if !s.window { args.append("-no-window") }
+        if player != nil || !s.window { args.append("-no-window") }
+        if let player {
+            args += ["-grpc", "\(player.port)", "-grpc-use-jwt", "-grpc-allowlist", player.policyFile.path]
+        }
         if !s.audio { args.append("-no-audio") }
         if let snapshot {
             args += ["-snapshot", snapshot, "-no-snapshot-save", "-force-snapshot-load"]
@@ -30,9 +34,9 @@ public struct Launcher {
         }
         args += ["-feature", s.vulkan ? "Vulkan" : "-Vulkan"]
         if s.vulkan { args += ["-feature", "GLDirectMem"] }
+        if s.disableAsyncSwap == true { args += ["-feature", "-GLAsyncSwap"] }
         if let presetID = s.deviceIdentityPreset, let identity = DeviceIdentity.profile(presetID) {
-            // Full coherent phone identity: every guest-visible identity value
-            // moves together (research/stealth/FINDINGS.md vectors 1-13).
+            // Preserve the merged opt-in profile behavior; runtime effectiveness is separate.
             for (name, value) in identity.properties { args += ["-prop", "\(name)=\(value)"] }
         } else {
             if let brand = s.deviceBrand { args += ["-prop", "ro.product.brand=\(brand)"] }
@@ -59,9 +63,32 @@ public struct Launcher {
     }
 
     @discardableResult
-    public func start(_ index: Int, coldBoot: Bool = false, snapshot: String? = nil) throws -> Int32 {
+    public func start(_ index: Int, coldBoot: Bool = false, snapshot: String? = nil,
+                      player: EmulatorPlayerLaunch? = nil) throws -> Int32 {
         let inst = try store.load(index)
-        if let pid = runningPID(index) { return pid }
+        if let pid = runningPID(index) {
+            guard player == nil else {
+                throw KestrelError.runtime("Stop the instance before starting a new authenticated player session")
+            }
+            return pid
+        }
+        return try launch(inst, coldBoot: coldBoot, snapshot: snapshot, player: player).processIdentifier
+    }
+
+    public func startOwned(_ index: Int, coldBoot: Bool = false, snapshot: String? = nil,
+                           player: EmulatorPlayerLaunch) throws -> OwnedEmulatorProcess {
+        let inst = try store.load(index)
+        guard runningPID(index) == nil else {
+            throw KestrelError.runtime("Stop the instance before starting a new authenticated player session")
+        }
+        let process = try launch(inst, coldBoot: coldBoot, snapshot: snapshot, player: player)
+        return OwnedEmulatorProcess(process: process, pidFile: pidFile(index))
+    }
+
+    private func launch(_ inst: Instance, coldBoot: Bool, snapshot: String?,
+                        player: EmulatorPlayerLaunch?) throws -> Process {
+        let index = inst.index
+        try player?.validate(for: inst.ports)
         guard store.sdk.hasSystemImage(inst.settings.systemImage) else {
             throw KestrelError.environment("system image \(inst.settings.systemImage) is not installed; run: kestrel setup")
         }
@@ -71,16 +98,23 @@ public struct Launcher {
         try store.save(inst)
         let proc = Process()
         proc.executableURL = store.sdk.emulator
-        proc.arguments = Self.arguments(for: inst, avdName: store.paths.avdName(index), coldBoot: coldBoot, snapshot: snapshot)
+        proc.arguments = Self.arguments(for: inst, avdName: store.paths.avdName(index), coldBoot: coldBoot,
+                                        snapshot: snapshot, player: player)
         proc.environment = environment()
         FileManager.default.createFile(atPath: logFile(index).path, contents: nil)
         let log = try FileHandle(forWritingTo: logFile(index))
+        defer { try? log.close() }
         proc.standardOutput = log
         proc.standardError = log
         proc.standardInput = FileHandle.nullDevice
         try proc.run()
-        try "\(proc.processIdentifier)".write(to: pidFile(index), atomically: true, encoding: .utf8)
-        return proc.processIdentifier
+        do {
+            try "\(proc.processIdentifier)".write(to: pidFile(index), atomically: true, encoding: .utf8)
+        } catch {
+            try OwnedEmulatorProcess(process: proc, pidFile: pidFile(index)).stop(gracePeriod: 0)
+            throw error
+        }
+        return proc
     }
 
     public func stop(_ index: Int) throws {
@@ -103,6 +137,23 @@ public struct Launcher {
             }
         }
         try? FileManager.default.removeItem(at: pidFile(index))
+    }
+
+    public func waitForBoot(_ index: Int, process: OwnedEmulatorProcess, timeout: TimeInterval = 180,
+                            isCancelled: () -> Bool = { false }) throws {
+        let instance = try store.load(index)
+        try process.waitUntilReady(timeout: timeout, isCancelled: isCancelled) { remaining in
+            do {
+                try PlayerCommandProcess.run(executable: store.sdk.adb,
+                    arguments: ["-s", instance.ports.serial, "shell", "test \"$(getprop sys.boot_completed)\" = 1"],
+                    timeout: min(2, remaining))
+                return true
+            } catch PlayerCommandError.failed(_) {
+                return false
+            } catch PlayerCommandError.timedOut {
+                return false
+            }
+        }
     }
 
     /// Waits until Android reports sys.boot_completed=1.

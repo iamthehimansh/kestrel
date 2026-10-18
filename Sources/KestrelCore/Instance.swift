@@ -131,13 +131,14 @@ public final class InstanceStore {
 
         """
         try pointer.write(to: paths.avdIni(instance.index), atomically: true, encoding: .utf8)
-        try AVDConfig.render(instance.settings, avdName: paths.avdName(instance.index))
+        let capacity = try DiskCapacity.setting(requestedGB: instance.settings.dataPartitionGB, directory: dir)
+        try AVDConfig.render(instance.settings, avdName: paths.avdName(instance.index), dataPartitionSize: capacity)
             .write(to: dir.appendingPathComponent("config.ini"), atomically: true, encoding: .utf8)
     }
 }
 
 public enum AVDConfig {
-    public static func render(_ s: InstanceSettings, avdName: String) -> String {
+    public static func render(_ s: InstanceSettings, avdName: String, dataPartitionSize: String? = nil) -> String {
         let parts = s.systemImage.split(separator: ";").map(String.init)
         let sysdir = parts.joined(separator: "/") + "/"
         let tag = parts[2]
@@ -153,6 +154,7 @@ public enum AVDConfig {
             ("hw.lcd.width", "\(s.width)"),
             ("hw.lcd.height", "\(s.height)"),
             ("hw.lcd.density", "\(s.dpi)"),
+            ("hw.lcd.vsync", "\(s.fpsLimit)"),
             ("hw.initialOrientation", s.width >= s.height ? "landscape" : "portrait"),
             ("hw.gpu.enabled", "yes"),
             ("hw.gpu.mode", s.gpuMode.rawValue),
@@ -169,7 +171,7 @@ public enum AVDConfig {
             ("hw.battery", "yes"),
             ("hw.camera.back", "emulated"),
             ("hw.camera.front", "emulated"),
-            ("disk.dataPartition.size", "\(s.dataPartitionGB)G"),
+            ("disk.dataPartition.size", dataPartitionSize ?? "\(s.dataPartitionGB)G"),
             ("fastboot.forceColdBoot", "no"),
             ("fastboot.forceFastBoot", "yes"),
             ("image.sysdir.1", sysdir),

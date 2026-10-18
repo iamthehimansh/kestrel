@@ -64,6 +64,8 @@ final class PlayController {
     let driver: Driver
     let keymap: Keymap
     let consolePort: Int
+    private let windowProvider: (() -> (frame: CGRect?, focused: Bool))?
+    private var nativePointerDown = false
     /// Short status lines for whoever hosts the session (stdout for the CLI, the app's UI).
     var onStatus: ((String) -> Void)?
     private var tap: CFMachPort?
@@ -76,10 +78,12 @@ final class PlayController {
     private var cursorLocked = false
     private var controllers: [GCController] = []
 
-    init(driver: Driver, keymap: Keymap, consolePort: Int) {
+    init(driver: Driver, keymap: Keymap, consolePort: Int,
+         windowProvider: (() -> (frame: CGRect?, focused: Bool))? = nil) {
         self.driver = driver
         self.keymap = keymap
         self.consolePort = consolePort
+        self.windowProvider = windowProvider
     }
 
     /// False when the event tap could not be created (no Accessibility permission).
@@ -122,6 +126,12 @@ final class PlayController {
     /// every instance runs the same emulator binary, and two running instances would both
     /// grab the keyboard.
     private func trackWindow() {
+        if let windowProvider {
+            let state = windowProvider()
+            emulatorFrame = state.frame
+            applyFocus(state.focused && state.frame != nil, frame: state.frame)
+            return
+        }
         let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         let marker = ":\(consolePort)"
         var frame: CGRect?
@@ -147,9 +157,14 @@ final class PlayController {
             }
             nowFocused = (front?[kCGWindowName as String] as? String)?.hasSuffix(marker) == true
         }
+        applyFocus(nowFocused, frame: frame)
+    }
+
+    private func applyFocus(_ nowFocused: Bool, frame: CGRect?) {
         if nowFocused != focused {
             focused = nowFocused
             if !focused {
+                nativePointerDown = false
                 unlockCursor()
                 driver.post(.reset)
             }
@@ -160,6 +175,7 @@ final class PlayController {
 
     /// Strips the emulator's title bar (28 pt) so normalized coordinates match the screen.
     private func contentRect(_ r: CGRect) -> CGRect {
+        if windowProvider != nil { return r }
         let title: CGFloat = 28
         return CGRect(x: r.minX, y: r.minY + title, width: r.width, height: max(1, r.height - title))
     }
@@ -211,13 +227,39 @@ final class PlayController {
     private var modifierState: [String: Bool] = [:]
 
     /// Returns nil to swallow the event (mapped key while focused), or the event to pass through.
-    private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+    func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
+        if let windowProvider {
+            let state = windowProvider()
+            emulatorFrame = state.frame
+            let nowFocused = state.focused && state.frame != nil
+            if nowFocused != focused { applyFocus(nowFocused, frame: state.frame) }
+        }
         guard focused else { return Unmanaged.passUnretained(event) }
         let pass = Unmanaged.passUnretained(event)
+        if windowProvider != nil {
+            let look = driver.sync { $0.effectiveLook }
+            if look && nativePointerDown {
+                driver.post(.pointerUp)
+                nativePointerDown = false
+            }
+            if type == .leftMouseUp && nativePointerDown {
+                nativePointerDown = false
+                driver.post(.pointerUp)
+                return nil
+            }
+            if !look, type == .leftMouseDown, let frame = emulatorFrame {
+                let rect = contentRect(frame)
+                guard rect.width > 0, rect.height > 0, rect.contains(event.location) else { return pass }
+                nativePointerDown = true
+                driver.post(.pointerDown(NPoint((event.location.x - rect.minX) / rect.width,
+                                               (event.location.y - rect.minY) / rect.height)))
+                return nil
+            }
+        }
 
         switch type {
         case .keyDown, .keyUp:
@@ -265,7 +307,12 @@ final class PlayController {
             }
             if let f = emulatorFrame {
                 let c = contentRect(f), p = event.location
-                driver.post(.cursor(NPoint((p.x - c.minX) / c.width, (p.y - c.minY) / c.height)))
+                let point = NPoint((p.x - c.minX) / c.width, (p.y - c.minY) / c.height)
+                driver.post(.cursor(point))
+                if windowProvider != nil, nativePointerDown, type == .leftMouseDragged {
+                    driver.post(.pointerMove(point))
+                    return nil
+                }
             }
             return pass
 

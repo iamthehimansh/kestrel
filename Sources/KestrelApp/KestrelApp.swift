@@ -31,7 +31,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
-    /// Instances keep running after Kestrel quits, as in MuMu; only key mapping stops.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let model = AppModel.shared
+        guard !model.nativePlayers.isEmpty else { return .terminateNow }
+        guard model.nativeQuitCompletion == nil else { return .terminateLater }
+        model.nativeQuitFailed = false
+        model.nativeQuitCompletion = { success in sender.reply(toApplicationShouldTerminate: success) }
+        for index in Array(model.nativePlayers.keys) { model.stop(index) }
+        return .terminateLater
+    }
+
+    /// Legacy external instances keep running; native sessions finish cleanup before quit.
     func applicationWillTerminate(_ notification: Notification) {
         AppModel.shared.stopAllKeymapping()
     }

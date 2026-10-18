@@ -9,6 +9,9 @@ extension InputEvent {
         case .keyUp(let k): return "keyup:\(k)"
         case .mouseMove(let dx, let dy): return "mouse:\(fmt(dx)),\(fmt(dy))"
         case .cursor(let p): return "cursor:\(fmt(p.x)),\(fmt(p.y))"
+        case .pointerDown(let p): return "pointerdown:\(fmt(p.x)),\(fmt(p.y))"
+        case .pointerMove(let p): return "pointermove:\(fmt(p.x)),\(fmt(p.y))"
+        case .pointerUp: return "pointerup"
         case .wheel(let n): return "wheel:\(fmt(n))"
         case .stick(let name, let x, let y): return "stick:\(name),\(fmt(x)),\(fmt(y))"
         case .setLook(let on): return "look:\(on ? "on" : "off")"
@@ -18,6 +21,7 @@ extension InputEvent {
 
     public init?(token: String) {
         if token == "reset" { self = .reset; return }
+        if token == "pointerup" { self = .pointerUp; return }
         let parts = token.split(separator: ":", maxSplits: 1).map(String.init)
         guard parts.count == 2 else { return nil }
         let fields = parts[1].split(separator: ",").map(String.init)
@@ -27,6 +31,10 @@ extension InputEvent {
         case "keyup": self = .keyUp(parts[1])
         case "mouse": guard nums.count == 2, fields.count == 2 else { return nil }; self = .mouseMove(dx: nums[0], dy: nums[1])
         case "cursor": guard nums.count == 2, fields.count == 2 else { return nil }; self = .cursor(NPoint(nums[0], nums[1]))
+        case "pointerdown", "pointermove":
+            guard nums.count == 2, fields.count == 2, nums.allSatisfy({ $0.isFinite }) else { return nil }
+            let point = NPoint(nums[0], nums[1])
+            self = parts[0] == "pointerdown" ? .pointerDown(point) : .pointerMove(point)
         case "wheel": guard nums.count == 1, fields.count == 1 else { return nil }; self = .wheel(nums[0])
         case "stick":
             guard fields.count == 3, let x = Double(fields[1]), let y = Double(fields[2]) else { return nil }

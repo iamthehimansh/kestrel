@@ -72,19 +72,11 @@ public struct ADB: Sendable {
     }
 
     /// PNG bytes of the current screen.
-    public func screenshotData() throws -> Data {
-        // Raw bytes: runProcess decodes stdout as UTF-8, which would corrupt the PNG.
-        let p = Process()
-        p.executableURL = sdk.adb
-        p.arguments = ["-s", serial, "exec-out", "screencap", "-p"]
-        let pipe = Pipe()
-        p.standardOutput = pipe
-        p.standardError = FileHandle.nullDevice
-        try p.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        p.waitUntilExit()
-        guard p.terminationStatus == 0, data.starts(with: [0x89, 0x50, 0x4E, 0x47]) else {
-            throw KestrelError.runtime("screencap failed (exit \(p.terminationStatus))")
+    public func screenshotData(timeout: TimeInterval = 10, maximumBytes: Int = 64 * 1024 * 1024) throws -> Data {
+        let data = try PlayerCommandCapture.runData(executable: sdk.adb,
+            arguments: ["-s", serial, "exec-out", "screencap", "-p"], timeout: timeout, maximumBytes: maximumBytes)
+        guard data.starts(with: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) else {
+            throw KestrelError.runtime("screencap did not return PNG data")
         }
         return data
     }

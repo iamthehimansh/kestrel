@@ -12,6 +12,7 @@ public final class KeymapCanvasView: NSView {
     public var background: NSImage? { didSet { needsDisplay = true } }
     public private(set) var selected: Int?
     public var showsStatus = true { didSet { needsDisplay = true } }
+    public var overlaysLiveVideo = false { didSet { needsDisplay = true } }
     public var status = "Click a control to select it · drag to move · double-click to add · press a key to rebind"
     public private(set) var dirty = false
 
@@ -175,10 +176,15 @@ public final class KeymapCanvasView: NSView {
     // MARK: Drawing
 
     override public func draw(_ dirtyRect: NSRect) {
-        NSColor(calibratedWhite: 0.1, alpha: 1).setFill()
-        bounds.fill()
+        if !overlaysLiveVideo {
+            NSColor(calibratedWhite: 0.1, alpha: 1).setFill()
+            bounds.fill()
+        }
         let c = content
-        if let background {
+        if overlaysLiveVideo {
+            NSColor(white: 0, alpha: 0.18).setFill()
+            c.fill()
+        } else if let background {
             NSGraphicsContext.current?.saveGraphicsState()
             // Flipped view: draw the image right side up.
             let t = NSAffineTransform()

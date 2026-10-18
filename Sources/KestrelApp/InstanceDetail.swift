@@ -195,10 +195,14 @@ struct SettingsTab: View {
                     Picker("Memory", selection: b.memoryMB) {
                         ForEach(memoryChoices(b.wrappedValue.memoryMB), id: \.self) { Text(formatGB($0)).tag($0) }
                     }
-                    Picker("Frame rate", selection: b.fpsLimit) {
-                        ForEach([30, 60, 90, 120, 144, 165, 240], id: \.self) { Text("\($0) fps").tag($0) }
+                    Picker("Virtual display refresh", selection: b.fpsLimit) {
+                        ForEach([30, 60, 90, 120, 144, 165, 240], id: \.self) { Text("\($0) Hz").tag($0) }
                     }
-                    Toggle("Show FPS", isOn: b.showFPS)
+                    Text("Applies after restart. Android and games may render below this rate; this is not a game FPS guarantee.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Toggle("Show FPS (not available yet)", isOn: b.showFPS)
+                        .disabled(true)
                 }
                 Section("Display") {
                     Picker("Resolution", selection: Binding(
@@ -217,6 +221,12 @@ struct SettingsTab: View {
                         Text("Software (compatibility)").tag(GPUMode.swiftshader)
                     }
                     Toggle("Vulkan", isOn: b.vulkan)
+                    Toggle("EGL crash compatibility", isOn: Binding(
+                        get: { b.wrappedValue.disableAsyncSwap == true },
+                        set: { s?.disableAsyncSwap = $0 }))
+                    Text("Disables asynchronous GL swaps for affected graphics drivers. Use Cold Boot after changing. May reduce frame pacing performance; does not bypass game compatibility checks.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 Section("Device") {
                     Picker("Phone model", selection: $device) {

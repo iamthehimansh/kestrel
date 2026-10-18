@@ -8,6 +8,10 @@ public enum InputEvent: Equatable, Sendable {
     case mouseMove(dx: Double, dy: Double)
     /// Absolute cursor position, normalized. Used for skill aiming in cursor mode.
     case cursor(NPoint)
+    /// Native player cursor touch, sharing the allocator with mapped game controls.
+    case pointerDown(NPoint)
+    case pointerMove(NPoint)
+    case pointerUp
     /// Wheel notches: positive = up.
     case wheel(Double)
     /// Gamepad stick, values in -1...1 (y down positive). name is "left" / "right".
@@ -94,7 +98,7 @@ public final class KeymapEngine {
         }
     }
 
-    private var effectiveLook: Bool { lookMode && !freeCursorHeld }
+    public var effectiveLook: Bool { lookMode && !freeCursorHeld }
 
     private var look: LookControl? {
         for c in keymap.controls { if case .look(let l) = c { return l } }
@@ -114,6 +118,11 @@ public final class KeymapEngine {
         case .keyUp(let k): keyUp(k)
         case .mouseMove(let dx, let dy): if effectiveLook { lookBy(dx: dx, dy: dy) }
         case .cursor(let p): cursor = p.clamped; updateAimedSkills()
+        case .pointerDown(let p):
+            if !effectiveLook, p.x.isFinite, p.y.isFinite { fingerDown("native-pointer", p) }
+        case .pointerMove(let p):
+            if !effectiveLook, p.x.isFinite, p.y.isFinite { fingerMove("native-pointer", p) }
+        case .pointerUp: fingerUp("native-pointer")
         case .wheel(let notches): wheel(notches)
         case .stick(let name, let x, let y): stick(name, x, y)
         case .setLook(let on): setLook(on)
@@ -360,6 +369,7 @@ public final class KeymapEngine {
     /// Releases controls that just became inactive (e.g. look-only fire button when the
     /// cursor is freed) so no finger is left stuck down.
     private func modeChanged() {
+        if effectiveLook { fingerUp("native-pointer") }
         for (i, c) in keymap.controls.enumerated() where !active(c) {
             cancel(owner(i))
             fingerUp(owner(i))

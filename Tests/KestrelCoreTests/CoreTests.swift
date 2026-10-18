@@ -16,6 +16,25 @@ final class CoreTests: XCTestCase {
 
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: tmp) }
 
+    func testAsyncSwapCompatibilityIsOptInAndOldProfilesStillDecode() throws {
+        let settings = InstanceSettings(name: "Legacy")
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(settings)) as? [String: Any])
+        object.removeValue(forKey: "disableAsyncSwap")
+        let legacy = try JSONDecoder().decode(InstanceSettings.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertNil(legacy.disableAsyncSwap)
+        XCTAssertEqual(try legacy.merging(json: Data(#"{"disableAsyncSwap":true}"#.utf8)).disableAsyncSwap, true)
+        XCTAssertThrowsError(try legacy.merging(json: Data(#"{"disableAsyncSwap":"yes"}"#.utf8)))
+        var instance = try store.create(name: "Compatibility")
+        let baseline = Launcher.arguments(for: instance, avdName: "test")
+        XCTAssertFalse(baseline.contains("-GLAsyncSwap"))
+        instance.settings.disableAsyncSwap = true
+        XCTAssertEqual(Launcher.arguments(for: instance, avdName: "test"), baseline + ["-feature", "-GLAsyncSwap"])
+        try store.save(instance)
+        XCTAssertEqual(try store.load(instance.index).settings.disableAsyncSwap, true)
+        instance.settings.disableAsyncSwap = false
+        XCTAssertEqual(Launcher.arguments(for: instance, avdName: "test"), baseline)
+    }
+
     func testCreateListCloneDelete() throws {
         let a = try store.create(name: "Main", preset: .low, resolution: "tablet-1280x720")
         XCTAssertEqual(a.index, 0)

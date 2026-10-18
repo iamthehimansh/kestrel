@@ -1,0 +1,15 @@
+--- a/guest/egl/egl.cpp
++++ b/guest/egl/egl.cpp
+@@ -1741,9 +1741,9 @@
+             wantedMinorVersion = true;
+             break;
+         case EGL_CONTEXT_FLAGS_KHR:
+-            if ((attrib_val & EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR) ||
+-                (attrib_val & EGL_CONTEXT_OPENGL_FORWARD_COMPATIBLE_BIT_KHR)  ||
+-                (attrib_val & EGL_CONTEXT_OPENGL_ROBUST_ACCESS_BIT_KHR)) {
++            if ((attrib_val & ~(EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR |
++                               EGL_CONTEXT_OPENGL_FORWARD_COMPATIBLE_BIT_KHR |
++                               EGL_CONTEXT_OPENGL_ROBUST_ACCESS_BIT_KHR)) == 0) {
+                 context_flags = attrib_val;
+             } else {
+                 RETURN_ERROR(EGL_NO_CONTEXT,EGL_BAD_ATTRIBUTE);

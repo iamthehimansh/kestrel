@@ -22,6 +22,7 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
     public var dpi: Int
     public var gpuMode: GPUMode
     public var vulkan: Bool
+    public var disableAsyncSwap: Bool?
     public var fpsLimit: Int
     public var showFPS: Bool
     public var performance: PerformancePreset
@@ -46,6 +47,7 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
         dpi: Int = 280,
         gpuMode: GPUMode = .host,
         vulkan: Bool = true,
+        disableAsyncSwap: Bool? = nil,
         fpsLimit: Int = 60,
         showFPS: Bool = false,
         performance: PerformancePreset = .medium,
@@ -67,6 +69,7 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
         self.dpi = dpi
         self.gpuMode = gpuMode
         self.vulkan = vulkan
+        self.disableAsyncSwap = disableAsyncSwap
         self.fpsLimit = fpsLimit
         self.showFPS = showFPS
         self.performance = performance
@@ -106,7 +109,7 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
         guard let patch = try JSONSerialization.jsonObject(with: json) as? [String: Any] else {
             throw KestrelError.invalid("settings patch must be a JSON object")
         }
-        let known = Set(base.keys).union(["deviceBrand", "deviceModel", "deviceIdentityPreset", "keymap"])
+        let known = Set(base.keys).union(["deviceBrand", "deviceModel", "deviceIdentityPreset", "keymap", "disableAsyncSwap"])
         for (k, v) in patch {
             guard known.contains(k) else { throw KestrelError.invalid("unknown setting '\(k)'") }
             base[k] = v

@@ -8,42 +8,52 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+source scripts/lib/progress.sh
 VERSION="${KESTREL_VERSION:-0.1.0}"
-APP="build/Kestrel.app"
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid release version" >&2; exit 1; }
+export PROTOC_PATH="${PROTOC_PATH:-$(command -v protoc || :)}"
+[ -x "$PROTOC_PATH" ] || { echo "protoc is required for the native stream build" >&2; exit 1; }
+mkdir -p build
+WORK="$(mktemp -d "$PWD/build/package.XXXXXX")"
+APP="$WORK/Kestrel.app"
+trap 'rm -rf "$WORK"' EXIT
 
-echo "==> Building (release)"
-swift build -c release --product KestrelApp
-swift build -c release --product kestrel
+run_step "[1/7] Build release app" swift build -c release --product KestrelApp --jobs 2
+run_step "[2/7] Build release CLI" swift build -c release --product kestrel --jobs 2
 BIN="$(swift build -c release --show-bin-path)"
 
-echo "==> touchd"
-if [ -x .build/touchd/touchd ] && [ .build/touchd/touchd -nt touchd/touchd.c ]; then
-  echo ".build/touchd/touchd is up to date"
-else
-  ./touchd/build.sh
-fi
+build_touch() {
+  if [ -x .build/touchd/touchd ] && [ .build/touchd/touchd -nt touchd/touchd.c ]; then
+    echo ".build/touchd/touchd is up to date"
+  else
+    sh touchd/build.sh
+  fi
+}
+run_step "[3/7] Build Android touch helper" build_touch
 
-echo "==> Assembling $APP"
-rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/bin"
-cp "$BIN/KestrelApp" "$APP/Contents/MacOS/Kestrel"
-cp "$BIN/kestrel" "$APP/Contents/Resources/bin/kestrel"
-cp .build/touchd/touchd "$APP/Contents/Resources/touchd"
-cp -R keymaps "$APP/Contents/Resources/keymaps"
-cp LICENSE "$APP/Contents/Resources/LICENSE"
+assemble() {
+  mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/bin"
+  cp "$BIN/KestrelApp" "$APP/Contents/MacOS/Kestrel"
+  cp "$BIN/kestrel" "$APP/Contents/Resources/bin/kestrel"
+  cp .build/touchd/touchd "$APP/Contents/Resources/touchd"
+  cp -R keymaps "$APP/Contents/Resources/keymaps"
+  cp LICENSE "$APP/Contents/Resources/LICENSE"
+  python3 -u scripts/package-dependencies.py --binaries "$BIN" --resources "$APP/Contents/Resources"
+}
+run_step "[4/7] Assemble app resources and notices" assemble
 
-echo "==> Icon"
-WORK="$(mktemp -d)"
-ICONSET="$WORK/Kestrel.iconset"
-mkdir -p "$ICONSET"
-swift scripts/make-icon.swift "$WORK/icon-1024.png" >/dev/null
-for s in 16 32 128 256 512; do
-  sips -z $s $s "$WORK/icon-1024.png" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
-  d=$((s * 2))
-  sips -z $d $d "$WORK/icon-1024.png" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
-done
-iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Kestrel.icns"
-rm -rf "$WORK"
+make_icon() {
+  local ICONSET="$WORK/Kestrel.iconset" s d
+  mkdir -p "$ICONSET"
+  swift scripts/make-icon.swift "$WORK/icon-1024.png"
+  for s in 16 32 128 256 512; do
+    sips -z "$s" "$s" "$WORK/icon-1024.png" --out "$ICONSET/icon_${s}x${s}.png"
+    d=$((s * 2))
+    sips -z "$d" "$d" "$WORK/icon-1024.png" --out "$ICONSET/icon_${s}x${s}@2x.png"
+  done
+  iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Kestrel.icns"
+}
+run_step "[5/7] Generate icon" make_icon
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -66,11 +76,25 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
-plutil -lint "$APP/Contents/Info.plist" >/dev/null
+sign_app() {
+  plutil -lint "$APP/Contents/Info.plist"
+  codesign --force -s - "$APP/Contents/Resources/bin/kestrel"
+  codesign --force --deep -s - "$APP"
+  codesign --verify --deep --strict "$APP"
+}
+run_step "[6/7] Validate and ad-hoc sign staged app" sign_app
 
-echo "==> Signing (ad-hoc)"
-codesign --force -s - "$APP/Contents/Resources/bin/kestrel"
-codesign --force --deep -s - "$APP"
-codesign --verify --strict "$APP"
-
-echo "==> Done: $APP ($(du -sh "$APP" | cut -f1))"
+publish_app() {
+  local backup="build/Kestrel.previous.$(date +%Y%m%d-%H%M%S).$$.app"
+  if [ -e build/Kestrel.app ]; then
+    mv build/Kestrel.app "$backup"
+    echo "Previous app preserved at $backup"
+  fi
+  if ! mv "$APP" build/Kestrel.app; then
+    if [ -e "$backup" ]; then mv "$backup" build/Kestrel.app; fi
+    return 1
+  fi
+  codesign --verify --deep --strict build/Kestrel.app
+}
+run_step "[7/7] Publish verified local app" publish_app
+printf '[%s] SUMMARY: build/Kestrel.app built and signed; Android SDK/image not bundled; not notarized.\n' "$(date +%H:%M:%S)"

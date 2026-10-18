@@ -8,6 +8,7 @@ public final class Driver {
     private let sink: TouchSink
     private let queue = DispatchQueue(label: "kestrel.driver", qos: .userInteractive)
     private var timer: DispatchSourceTimer?
+    private var sinkFailure: Error?
     private let start = DispatchTime.now().uptimeNanoseconds
     public var onError: ((Error) -> Void)?
     /// When set, every input event is also recorded (for `kestrel play --record`).
@@ -41,6 +42,36 @@ public final class Driver {
         usleep(1_000_000)
     }
 
+    /// The caller owns stop(); cancellation is checked during long gaps as well as events.
+    public func replay(_ recording: InputRecording, isCancelled: () -> Bool) throws {
+        var previous = 0.0
+        for entry in recording.entries {
+            guard entry.t.isFinite, entry.t >= previous, entry.t <= 86_400_000 else {
+                throw ReplayError.invalidTimestamp
+            }
+            previous = entry.t
+        }
+        func wait(until deadline: TimeInterval) throws {
+            while true {
+                if isCancelled() { throw CancellationError() }
+                if let failure = queue.sync(execute: { sinkFailure }) { throw failure }
+                let remaining = deadline - ProcessInfo.processInfo.systemUptime
+                if remaining <= 0 { return }
+                Thread.sleep(forTimeInterval: min(0.02, remaining))
+            }
+        }
+        if isCancelled() { throw CancellationError() }
+        startTicking()
+        let began = ProcessInfo.processInfo.systemUptime
+        for entry in recording.entries {
+            try wait(until: began + entry.t / 1000)
+            post(entry.event)
+        }
+        try wait(until: ProcessInfo.processInfo.systemUptime + 1)
+    }
+
+    public enum ReplayError: Error { case invalidTimestamp }
+
     public func startTicking(hz: Double = 120) {
         let t = DispatchSource.makeTimerSource(queue: queue)
         t.schedule(deadline: .now(), repeating: 1 / hz, leeway: .microseconds(500))
@@ -65,6 +96,10 @@ public final class Driver {
 
     private func flush(_ ops: [TouchOp]) {
         guard !ops.isEmpty else { return }
-        do { try sink.send(ops) } catch { onError?(error) }
+        do { try sink.send(ops) }
+        catch {
+            if sinkFailure == nil { sinkFailure = error }
+            onError?(error)
+        }
     }
 }
