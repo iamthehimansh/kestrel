@@ -83,7 +83,8 @@ public final class PlayerWindowController: NSWindowController, NSWindowDelegate 
     }
 
     private var closeNotified = false
-    private let panel = NSStackView()
+    private let panel = NSScrollView()
+    private let actionRail = PlayerActionRail()
     private let placeholder = NSTextField(labelWithString: "Waiting for a video connection")
     private var actionButtons: [NSButton] = []
     private(set) var keymapOverlay: PlayerKeymapOverlay?
@@ -348,14 +349,30 @@ public final class PlayerWindowController: NSWindowController, NSWindowDelegate 
         hint.textColor = NSColor(white: 0.60, alpha: 1)
         hint.translatesAutoresizingMaskIntoConstraints = false
         statusPanel.addSubview(hint)
-        panel.orientation = .vertical
-        panel.alignment = .centerX
-        panel.spacing = 2
-        panel.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
-        let railWidth = panel.widthAnchor.constraint(equalToConstant: 52)
-        railWidth.priority = .defaultHigh
-        railWidth.isActive = true
-        panel.setContentHuggingPriority(.required, for: .horizontal)
+        // Keep the rail narrow, but never let NSStackView drop or compress actions
+        // when the host window is shorter than the complete list of controls.
+        panel.identifier = NSUserInterfaceItemIdentifier("player.actionScroll")
+        panel.drawsBackground = false
+        panel.borderType = .noBorder
+        panel.hasVerticalScroller = true
+        panel.hasHorizontalScroller = false
+        panel.scrollerStyle = .overlay
+        panel.autohidesScrollers = true
+        panel.widthAnchor.constraint(equalToConstant: 52).isActive = true
+        actionRail.orientation = .vertical
+        actionRail.alignment = .centerX
+        actionRail.spacing = 2
+        actionRail.detachesHiddenViews = false
+        actionRail.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        actionRail.setContentHuggingPriority(.required, for: .vertical)
+        actionRail.setContentCompressionResistancePriority(.required, for: .vertical)
+        actionRail.translatesAutoresizingMaskIntoConstraints = false
+        panel.documentView = actionRail
+        NSLayoutConstraint.activate([
+            actionRail.leadingAnchor.constraint(equalTo: panel.contentView.leadingAnchor),
+            actionRail.topAnchor.constraint(equalTo: panel.contentView.topAnchor),
+            actionRail.widthAnchor.constraint(equalTo: panel.contentView.widthAnchor)
+        ])
         display.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let symbols: [PlayerWindowAction: String] = [
             .volumeDown: "speaker.minus", .volumeUp: "speaker.plus", .screenshot: "camera",
@@ -367,16 +384,17 @@ public final class PlayerWindowController: NSWindowController, NSWindowDelegate 
                 let separator = NSBox()
                 separator.boxType = .separator
                 separator.widthAnchor.constraint(equalToConstant: 24).isActive = true
-                panel.addArrangedSubview(separator)
+                separator.heightAnchor.constraint(equalToConstant: 1).isActive = true
+                actionRail.addArrangedSubview(separator)
             }
             let button = chromeButton(action.title, symbol: symbols[action]!, action: #selector(actionClicked(_:)))
             button.tag = action.rawValue
-            panel.addArrangedSubview(button)
+            actionRail.addArrangedSubview(button)
             actionButtons.append(button)
         }
         let mapping = chromeButton("Keymapping controls", symbol: "switch.2", action: #selector(showMappingControls(_:)))
         mappingButton = mapping
-        panel.addArrangedSubview(mapping)
+        actionRail.addArrangedSubview(mapping)
         mappingSwitch.target = self
         mappingSwitch.action = #selector(mappingRequested(_:))
         opacitySlider.target = self
@@ -413,6 +431,7 @@ public final class PlayerWindowController: NSWindowController, NSWindowDelegate 
             body.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             body.bottomAnchor.constraint(equalTo: root.bottomAnchor),
             display.heightAnchor.constraint(equalTo: body.heightAnchor),
+            panel.heightAnchor.constraint(equalTo: body.heightAnchor),
             display.widthAnchor.constraint(greaterThanOrEqualToConstant: 280),
             frameView.leadingAnchor.constraint(equalTo: display.leadingAnchor),
             frameView.trailingAnchor.constraint(equalTo: display.trailingAnchor),
@@ -439,4 +458,9 @@ public final class PlayerWindowController: NSWindowController, NSWindowDelegate 
         frameView.isHidden = true
     }
 
+}
+
+/// A flipped document starts at the first action and grows downward when scrolling.
+private final class PlayerActionRail: NSStackView {
+    override var isFlipped: Bool { true }
 }

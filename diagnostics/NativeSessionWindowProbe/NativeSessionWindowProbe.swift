@@ -258,7 +258,41 @@ private final class WindowProbe: NSObject, NSApplicationDelegate {
         }.value
         toggle.performClick(nil)
         guard !player.keymappingEnabled, requests == [true, false] else { throw KestrelError.runtime("Disable failed") }
-        log("SUMMARY: real sidebar controls exercised; screenshot saved; no VM or user app changed")
+        button.performClick(nil) // Close the transient popover before resizing its anchor.
+        guard let scroll = descendants(content).compactMap({ $0 as? NSScrollView }).first(where: {
+            $0.identifier?.rawValue == "player.actionScroll"
+        }), let rail = scroll.documentView as? NSStackView else {
+            throw KestrelError.runtime("Sidebar must have a scrollable action document")
+        }
+        let actions = rail.arrangedSubviews.compactMap { $0 as? NSButton }
+        guard actions.count == PlayerWindowAction.allCases.count + 1 else {
+            throw KestrelError.runtime("Sidebar lost an action")
+        }
+        for size in [NSSize(width: 560, height: 338), NSSize(width: 560, height: 360),
+                     NSSize(width: 1000, height: 620)] {
+            window.setContentSize(size)
+            content.layoutSubtreeIfNeeded()
+            guard abs(scroll.bounds.width - 52) < 1,
+                  abs(scroll.bounds.height - (content.bounds.height - 44)) < 1 else {
+                throw KestrelError.runtime("Sidebar viewport no longer fits the player")
+            }
+            var previousMaxY: CGFloat = 0
+            for action in actions {
+                let rect = action.convert(action.bounds, to: rail)
+                guard action.superview === rail, !action.isHidden,
+                      abs(rect.height - 36) < 1, abs(rect.width - 36) < 1,
+                      rect.minY >= previousMaxY else {
+                    throw KestrelError.runtime("Sidebar action collapsed, detached or overlapped: \(action.title)")
+                }
+                previousMaxY = rect.maxY
+                rail.scrollToVisible(rect)
+                content.layoutSubtreeIfNeeded()
+                guard rail.visibleRect.insetBy(dx: -1, dy: -1).contains(rect) else {
+                    throw KestrelError.runtime("Sidebar action cannot scroll into view: \(action.title)")
+                }
+            }
+        }
+        log("SUMMARY: sidebar toggles, opacity and every action at short/tall sizes exercised; screenshot saved; no VM or user app changed")
     }
 
     func checkOverlay(to directory: URL) async throws {

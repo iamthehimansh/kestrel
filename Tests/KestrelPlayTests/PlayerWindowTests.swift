@@ -124,6 +124,56 @@ final class PlayerWindowTests: XCTestCase {
         }
     }
 
+    func testActionRailScrollsEveryControlIntoViewAtMinimumSize() throws {
+        try onMain {
+            _ = NSApplication.shared
+            let player = try PlayerWindowController(title: "Short rail", device: XCTUnwrap(MTLCreateSystemDefaultDevice()))
+            defer { player.close() }
+            let window = try XCTUnwrap(player.window)
+            let root = try XCTUnwrap(window.contentView)
+            func descendants(_ view: NSView) -> [NSView] {
+                [view] + view.subviews.flatMap(descendants)
+            }
+            let scroll = try XCTUnwrap(descendants(root).compactMap { $0 as? NSScrollView }
+                .first { $0.identifier?.rawValue == "player.actionScroll" })
+            let rail = try XCTUnwrap(scroll.documentView as? NSStackView)
+            let buttons = rail.arrangedSubviews.compactMap { $0 as? NSButton }
+            XCTAssertEqual(buttons.count, PlayerWindowAction.allCases.count + 1)
+            for size in [NSSize(width: 1000, height: 620), NSSize(width: 560, height: 338),
+                         NSSize(width: 560, height: 360), NSSize(width: 1000, height: 620)] {
+                window.setContentSize(size)
+                root.layoutSubtreeIfNeeded()
+                XCTAssertEqual(scroll.bounds.width, 52, accuracy: 1)
+                XCTAssertEqual(scroll.bounds.height, root.bounds.height - 44, accuracy: 1)
+                XCTAssertGreaterThanOrEqual(rail.bounds.height, 400)
+                for (index, button) in buttons.enumerated() {
+                    XCTAssertTrue(button.superview === rail, "Stack must not detach clipped actions")
+                    XCTAssertFalse(button.isHidden)
+                    XCTAssertEqual(button.bounds.height, 36, accuracy: 0.5)
+                    XCTAssertEqual(button.bounds.width, 36, accuracy: 0.5)
+                    let rect = button.convert(button.bounds, to: rail)
+                    if index > 0 {
+                        let previous = buttons[index - 1].convert(buttons[index - 1].bounds, to: rail)
+                        XCTAssertGreaterThanOrEqual(rect.minY, previous.maxY)
+                    }
+                    rail.scrollToVisible(rect)
+                    root.layoutSubtreeIfNeeded()
+                    XCTAssertTrue(rail.visibleRect.insetBy(dx: -1, dy: -1).contains(rect),
+                                  "Every action, including mapping controls, must be reachable")
+                }
+                if size.height < 400 {
+                    XCTAssertGreaterThan(rail.bounds.height, scroll.contentView.bounds.height)
+                }
+                player.setSidePanelVisible(false)
+                root.layoutSubtreeIfNeeded()
+                XCTAssertEqual(player.frameView.bounds.width, root.bounds.width, accuracy: 1)
+                player.setSidePanelVisible(true)
+                root.layoutSubtreeIfNeeded()
+                XCTAssertEqual(scroll.bounds.width, 52, accuracy: 1)
+            }
+        }
+    }
+
     func testDisplayResizeChangesHostWindowAndPreservesConnection() throws {
         try onMain {
             _ = NSApplication.shared

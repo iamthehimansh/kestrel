@@ -166,6 +166,7 @@ extension AppModel {
                             return try KeymapSession(instance: inst, store: store, keymap: km, record: record,
                                 sink: sink, inputSize: try player.keymapInputSize(),
                                 windowProvider: { MainActor.assumeIsolated { player.keymapWindowState() } },
+                                hintParentWindow: player.player.window,
                                 onStatus: report)
                         } catch {
                             player.releaseKeymapInput()

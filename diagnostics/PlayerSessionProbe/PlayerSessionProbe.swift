@@ -140,12 +140,29 @@ struct PlayerSessionProbe {
                             arguments: ["-s", serial, "shell", "dumpsys", "input_method"], timeout: 3)
                     } catch {
                         log(2, "Editor inspection failed after \(ProcessInfo.processInfo.systemUptime - began)s: \(error)")
-                        return nil
+                        throw error
                     }
                     let parsed = PlayerGuestTextFocus.parse(output)
                     // Also require the production observer's before/after window validation
                     // and 500ms budget. Parser-only success is not production typing proof.
-                    let validated = try PlayerGuestTextObserver.inspect(adb: adb, serial: serial)
+                    let observationBegan = ProcessInfo.processInfo.systemUptime
+                    let validated: PlayerGuestTextFocus?
+                    do {
+                        validated = try PlayerGuestTextObserver.inspect(adb: adb, serial: serial)
+                    } catch {
+                        log(2, "Validated focus observation failed after \(ProcessInfo.processInfo.systemUptime - observationBegan)s: \(error)")
+                        for arguments in [["dumpsys", "window", "displays"], ["dumpsys", "input_method"]] {
+                            let queryBegan = ProcessInfo.processInfo.systemUptime
+                            do {
+                                let captured = try PlayerCommandCapture.run(executable: adb,
+                                    arguments: ["-s", serial, "shell"] + arguments, timeout: 3)
+                                log(2, "Diagnostic \(arguments.joined(separator: " ")): bytes=\(captured.utf8.count), elapsed=\(ProcessInfo.processInfo.systemUptime - queryBegan)s")
+                            } catch {
+                                log(2, "Diagnostic \(arguments.joined(separator: " ")) failed after \(ProcessInfo.processInfo.systemUptime - queryBegan)s: \(error)")
+                            }
+                        }
+                        throw error
+                    }
                     guard parsed == validated else {
                         throw KestrelError.runtime("Production observer did not confirm the parsed editor")
                     }

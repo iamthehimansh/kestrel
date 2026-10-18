@@ -29,6 +29,22 @@ final class PlayerCommandCaptureTests: XCTestCase {
         XCTAssertLessThan(ProcessInfo.processInfo.systemUptime - began, 2)
     }
 
+    func testShortChildrenCompleteFromDetachedTaskWithinFocusBudget() async throws {
+        try await Task.detached {
+            for _ in 0..<20 {
+                let began = ProcessInfo.processInfo.systemUptime
+                for _ in 0..<3 {
+                    let remaining = 0.5 - (ProcessInfo.processInfo.systemUptime - began)
+                    XCTAssertGreaterThan(remaining, 0)
+                    let output = try PlayerCommandCapture.run(executable: URL(fileURLWithPath: "/usr/bin/printf"),
+                        arguments: ["%s", "focus-fixture"], timeout: remaining)
+                    XCTAssertEqual(output, "focus-fixture")
+                }
+                XCTAssertLessThan(ProcessInfo.processInfo.systemUptime - began, 0.5)
+            }
+        }.value
+    }
+
     func testInvalidBoundsRejectedBeforeLaunch() {
         let missing = URL(fileURLWithPath: "/missing-command")
         for timeout in [-1.0, 0, .nan, .infinity, 31] {

@@ -36,6 +36,7 @@ final class PlayerBackdrop: NSView {
 }
 
 final class PlayerChromeButton: NSButton {
+    override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsetsZero }
     private var hovered = false
     override func updateTrackingAreas() {
         super.updateTrackingAreas()

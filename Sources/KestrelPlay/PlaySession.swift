@@ -65,6 +65,7 @@ final class PlayController {
     let keymap: Keymap
     let consolePort: Int
     private let windowProvider: (() -> (frame: CGRect?, focused: Bool))?
+    private weak var hintParentWindow: NSWindow?
     private var nativePointerDown = false
     func setHintOpacity(_ value: Double) { overlay?.setOpacity(value) }
     /// Short status lines for whoever hosts the session (stdout for the CLI, the app's UI).
@@ -80,18 +81,20 @@ final class PlayController {
     private var controllers: [GCController] = []
 
     init(driver: Driver, keymap: Keymap, consolePort: Int,
-         windowProvider: (() -> (frame: CGRect?, focused: Bool))? = nil) {
+         windowProvider: (() -> (frame: CGRect?, focused: Bool))? = nil,
+         hintParentWindow: NSWindow? = nil) {
         self.driver = driver
         self.keymap = keymap
         self.consolePort = consolePort
         self.windowProvider = windowProvider
+        self.hintParentWindow = hintParentWindow
     }
 
     /// False when the event tap could not be created (no Accessibility permission).
     @discardableResult
     func start() -> Bool {
         let ok = installEventTap()
-        overlay = HintOverlay(keymap: keymap)
+        overlay = HintOverlay(keymap: keymap, parentWindow: hintParentWindow)
         windowTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in self?.trackWindow() }
         trackWindow()
         setupGamepads()
@@ -406,19 +409,33 @@ final class PlayController {
 
 /// Click-through transparent window that labels each control over the emulator.
 final class HintOverlay {
-    private let window: NSWindow
+    let window: NSWindow
     private let view: HintView
+    private weak var parentWindow: NSWindow?
+    private let usesNativeParent: Bool
     private var hidden = false
+    private var closed = false
 
-    init(keymap: Keymap) {
+    init(keymap: Keymap, parentWindow: NSWindow? = nil) {
+        self.parentWindow = parentWindow
+        usesNativeParent = parentWindow != nil
         view = HintView(keymap: keymap)
-        window = NSWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
+        window = HintOverlayWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
         window.isOpaque = false
         window.backgroundColor = .clear
         window.ignoresMouseEvents = true
-        window.level = .floating
         window.hasShadow = false
-        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        if let parentWindow {
+            // Native hints belong to the player's Space, including its fullscreen Space.
+            // Floating/join-all-Spaces windows can remain behind the fullscreen player.
+            window.level = parentWindow.level
+            window.collectionBehavior = [.fullScreenAuxiliary]
+        } else {
+            // The external emulator cannot own an AppKit child window in this process.
+            window.level = .floating
+            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        }
         window.contentView = view
     }
 
@@ -427,19 +444,40 @@ final class HintOverlay {
         window.alphaValue = min(1, max(0, value))
     }
 
-    func toggleHidden() { hidden.toggle(); view.needsDisplay = true; if hidden { window.orderOut(nil) } }
+    func toggleHidden() { hidden.toggle(); view.needsDisplay = true; if hidden { hide() } }
+
+    private func hide() {
+        window.parent?.removeChildWindow(window)
+        window.orderOut(nil)
+    }
 
     /// `frame` is in CoreGraphics (top-left origin) global coordinates.
     func update(frame: CGRect?, visible: Bool, look: Bool) {
-        guard let frame, visible, !hidden else { window.orderOut(nil); return }
+        guard !closed, let frame, visible, !hidden else { hide(); return }
+        if usesNativeParent {
+            guard let parentWindow, parentWindow.isVisible, !parentWindow.isMiniaturized else { hide(); return }
+            window.level = parentWindow.level
+        }
         let screenH = NSScreen.screens.first?.frame.height ?? 0
         let r = NSRect(x: frame.minX, y: screenH - frame.maxY, width: frame.width, height: frame.height)
         if window.frame != r { window.setFrame(r, display: true) }
         if view.look != look { view.look = look; view.needsDisplay = true }
-        window.orderFrontRegardless()
+        if usesNativeParent, let parentWindow {
+            if window.parent !== parentWindow { parentWindow.addChildWindow(window, ordered: .above) }
+            // Never make key or order above unrelated apps: focus still comes exclusively
+            // from the provider and focus loss continues to reset all active touches.
+            window.orderFront(nil)
+        } else {
+            window.orderFrontRegardless()
+        }
     }
 
-    func close() { window.orderOut(nil) }
+    func close() { closed = true; hide() }
+}
+
+private final class HintOverlayWindow: NSWindow {
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
 }
 
 final class HintView: NSView {

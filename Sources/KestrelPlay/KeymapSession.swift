@@ -25,6 +25,7 @@ public final class KeymapSession {
                 sink suppliedSink: TouchSink? = nil,
                 inputSize: (width: Int, height: Int)? = nil,
                 windowProvider: (() -> (frame: CGRect?, focused: Bool))? = nil,
+                hintParentWindow: NSWindow? = nil,
                 onStatus: @escaping (String) -> Void) throws {
         guard Launcher(store: store).runningPID(instance.index) != nil else {
             throw KestrelError.runtime("\(instance.settings.name) is not running")
@@ -47,7 +48,7 @@ public final class KeymapSession {
                             sink: sink, recorder: recorder)
         driver.onError = { e in DispatchQueue.main.async { onStatus("\(e)") } }
         let controller = PlayController(driver: driver, keymap: keymap, consolePort: instance.ports.console,
-                                        windowProvider: windowProvider)
+                                        windowProvider: windowProvider, hintParentWindow: hintParentWindow)
         controller.onStatus = onStatus
         guard controller.start() else {
             controller.stop()
