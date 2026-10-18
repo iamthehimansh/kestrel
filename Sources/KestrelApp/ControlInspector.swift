@@ -85,6 +85,7 @@ struct ControlInspector: View {
             Section("Stick") {
                 PointField(title: "Centre", point: b.center)
                 ValueSlider(title: "Radius", value: b.radius, range: 0.01...0.5, step: 0.005, format: "%.3f")
+                ValueSlider(title: "Push distance", value: b.travel.or(1), range: 0.25...4, step: 0.05, format: "%.2f×")
             }
             Section("Walk and sprint") {
                 KeyField(title: "Walk key", key: b.walkKey, optional: true)

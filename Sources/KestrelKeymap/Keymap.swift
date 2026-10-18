@@ -80,6 +80,9 @@ public struct JoystickControl: Codable, Equatable, Sendable {
     /// Hold to push past the joystick edge (sprint/auto-run lock in many shooters).
     public var sprintKey: String?
     public var sprintScale: Double?
+    /// How far a key press drags the stick, as a multiple of `radius`. The ring stays the
+    /// size of `radius`; this only changes the touch travel. Default 1.
+    public var travel: Double?
 }
 
 /// Mouse-look / aim: relative mouse motion drags a finger from `center`; when the finger
@@ -338,6 +341,7 @@ public struct Keymap: Codable, Equatable, Sendable {
             switch c {
             case .joystick(let j):
                 if j.radius <= 0 || j.radius > 0.5 { problems.append("\(where_): radius must be in (0, 0.5]") }
+                if let t = j.travel, !(t >= 0.25 && t <= 4) { problems.append("\(where_): travel must be in [0.25, 4]") }
                 if j.stick == nil && [j.up, j.down, j.left, j.right].allSatisfy({ $0 == nil }) {
                     problems.append("\(where_): needs direction keys or a stick")
                 }

@@ -68,6 +68,28 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(e.handle(.keyUp("D"), at: 40), [.up(slot: 0)], "all keys up lifts the finger")
     }
 
+    func testJoystickTravelScalesPushWithoutChangingRadius() {
+        var j = JoystickControl(up: "W", down: "S", left: "A", right: "D", stick: nil,
+                                center: NPoint(0.15, 0.75), radius: 0.06,
+                                walkKey: nil, walkScale: nil, sprintKey: nil, sprintScale: nil)
+        j.travel = 2
+        let e = engine([.joystick(j)])
+        let cy = Int((0.75 * Double(H - 1)).rounded())
+        guard case .move(0, _, let y) = e.handle(.keyDown("W"), at: 0).last else { return XCTFail() }
+        XCTAssertEqual(Double(cy - y), 0.06 * 2 * Double(W), accuracy: 2, "travel 2 doubles the push")
+
+        var editor = KeymapEditor(keymap: Keymap(name: "t", controls: [.joystick(j)]), aspect: 16.0 / 9)
+        XCTAssertTrue(editor.adjustTravel(0, by: 10))
+        guard case .joystick(let capped) = editor.keymap.controls[0] else { return XCTFail() }
+        XCTAssertEqual(capped.travel, 4, "travel is capped at 4")
+        XCTAssertEqual(capped.radius, 0.06, "ring size is unchanged")
+        XCTAssertTrue(editor.adjustTravel(0, by: 0.25))
+        guard case .joystick(let back) = editor.keymap.controls[0] else { return XCTFail() }
+        XCTAssertNil(back.travel, "returning to 1x drops the field")
+        j.travel = 9
+        XCTAssertFalse(Keymap(name: "t", controls: [.joystick(j)]).validate().isEmpty, "out-of-range travel rejected")
+    }
+
     func testJoystickOpposingKeysCancel() {
         let e = engine([joystick()])
         e.handle(.keyDown("A"), at: 0)

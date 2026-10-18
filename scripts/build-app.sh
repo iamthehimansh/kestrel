@@ -38,6 +38,8 @@ assemble() {
   cp .build/touchd/touchd "$APP/Contents/Resources/touchd"
   cp -R keymaps "$APP/Contents/Resources/keymaps"
   cp LICENSE "$APP/Contents/Resources/LICENSE"
+  cp THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/THIRD_PARTY_NOTICES.md"
+  cp -R licenses "$APP/Contents/Resources/licenses"
   python3 -u scripts/package-dependencies.py --binaries "$BIN" --resources "$APP/Contents/Resources"
 }
 run_step "[4/7] Assemble app resources and notices" assemble
@@ -72,6 +74,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.games</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSMicrophoneUsageDescription</key><string>Kestrel passes your microphone to Android only when you turn on Microphone for an instance, for in-game voice chat.</string>
   <key>NSHumanReadableCopyright</key><string>MIT License. Kestrel contributors.</string>
 </dict>
 </plist>

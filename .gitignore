@@ -6,3 +6,8 @@ build/
 .cocreate/
 # Private research notes, not part of the project.
 REPORT.md
+# Raw device logs from research runs: contain machine and device identifiers.
+research/stealth/results/
+__pycache__/
+*.pyc
+*.dmg

@@ -249,7 +249,14 @@ struct SettingsTab: View {
                         Slider(value: b.mouseSensitivity, in: 0.2...4, step: 0.1)
                         Text(String(format: "%.1f×", b.wrappedValue.mouseSensitivity)).monospacedDigit().frame(width: 40)
                     }
-                    Toggle("Sound and microphone", isOn: b.audio)
+                    Toggle("Sound", isOn: b.audio)
+                    Toggle("Microphone (voice chat)", isOn: Binding(
+                        get: { b.wrappedValue.microphone == true },
+                        set: { s?.microphone = $0 }))
+                        .disabled(!b.wrappedValue.audio)
+                    Text("Sends your Mac's microphone to Android. macOS asks for permission the first time. Restart the instance after changing.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     Toggle("Show the emulator window", isOn: b.window)
                 }
                 if !errors.isEmpty {

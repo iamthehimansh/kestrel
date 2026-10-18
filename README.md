@@ -1,181 +1,109 @@
-# Kestrel
+# Kestrel — open-source Android gaming emulator for Apple Silicon Macs
 
-An open-source Android gaming emulator for Apple Silicon Macs. No account, no login, no telemetry.
+An Android gaming environment for Apple Silicon Macs, with keyboard/mouse controls and a native Metal player. Kestrel manages Google's Android Emulator and adds instance management, editable keymaps and documented research. Kestrel itself requires no account; games and Google Play may require their own accounts.
 
-Kestrel is a clean-room project built only on open-source parts. It contains no code, binaries or Android images from any commercial emulator. `REPORT.md` is a separate research note on how commercial Mac Android emulators are put together; nothing in Kestrel is copied from them.
+> **Preview release.** Kestrel works and is actively used for games such as BGMI, but it is young. The app is ad-hoc signed (not notarized), the Android SDK is downloaded on first run rather than bundled, and game compatibility varies. Read [Compatibility](docs/guide/compatibility.md) before you rely on it.
 
-## What it is built on
+![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-black) ![Swift](https://img.shields.io/badge/Swift-6.2-orange) ![License](https://img.shields.io/badge/license-MIT-blue) ![Status](https://img.shields.io/badge/status-preview-yellow)
 
-| Layer | Kestrel |
-|---|---|
-| Virtual machine | Google's open-source Android Emulator (QEMU, accelerated by Apple's Hypervisor.framework) |
-| Graphics | gfxstream → ANGLE → MoltenVK → Metal, shipped with the Android Emulator |
-| Android | Official Android SDK system images (Android 16 arm64 with Play Store by default) |
-| Instances, settings, presets | `kestrel` CLI and `KestrelCore` |
-| Game controls | `KestrelKeymap` engine + on-device `touchd` injector + `kestrel play` |
-| Account | None |
+![BGMI gameplay in Kestrel's native macOS player with keyboard hints and the right-hand control sidebar](docs/assets/bgmi-gameplay.png)
+
+*Maintainer-provided gameplay screenshot. The bottom identifier strip was cropped for privacy; this demonstrates this session rendering, not universal game compatibility.*
+
+## Download
+
+Get the latest `Kestrel-<version>.dmg` from [Releases](https://github.com/iamthehimansh/kestrel/releases), open it and drag **Kestrel** to Applications. The first time, macOS will say it cannot verify the developer: open **System Settings → Privacy & Security** and click **Open Anyway**. Full walkthrough: [Getting started](docs/guide/getting-started.md).
+
+## Features
+
+- **Native player window** — Android frames are streamed over an authenticated local gRPC connection and drawn with Metal, with a sidebar for Back, Home, Recents, volume, rotate, screenshot and keyboard.
+- **Keymapping for games** — WASD joystick, mouse-look aiming, taps, swipes, skills, macros and gamepad buttons, with presets for BGMI/PUBG Mobile, Free Fire, Call of Duty: Mobile, Genshin Impact, MLBB, Clash of Clans, Asphalt and Subway Surfers.
+- **Live keymap editor** — drag controls over the running game, press a key to rebind, `[` `]` to resize a joystick ring and `Shift+[` `Shift+]` to change how far it actually pushes. Turn mapping on/off and set hint visibility (0–100%) from the sidebar.
+- **Typing** — when an Android text field is focused, your Mac keyboard types into it and game keys step aside (ASCII for now).
+- **Microphone** — optional per-instance switch to pass your Mac microphone to Android for voice chat.
+- **Multiple instances** — create, clone, snapshot and restore; choose CPU, RAM, resolution, DPI, renderer, Vulkan and device profile.
+- **Google Play** — instances use Google's official Play Store system image; sign in with your own account like on a phone. APKs install by drag and drop.
+- **Command line** — everything is scriptable through the `kestrel` CLI.
 
 ## Requirements
 
-- An Apple Silicon Mac on macOS 13 or later
-- Swift 5.10+ (Xcode or the command line tools)
-- [Homebrew](https://brew.sh), if you don't already have the Android SDK. `kestrel setup` does the rest:
+| | |
+|---|---|
+| Mac | Apple Silicon (arm64). Intel Macs are not supported. |
+| macOS | 15 or later for the native player (the core tools build for macOS 13+). |
+| Disk | Several GB for the Android SDK and system image, plus space for each instance. |
+| Permissions | Accessibility (for keymapping), Microphone (only if you turn it on). |
+
+## Quick start
+
+1. Install from the DMG and open Kestrel.
+2. Let it download the Android SDK and Google Play system image (it accepts the SDK licences on your behalf; you can review them in Android Studio's SDK manager).
+3. Create an instance, start it, and sign in to Google Play inside Android.
+4. Install a game, pick its keymap in **Controls**, and press **Play**.
+
+**BGMI:** use **Character control option 3** (fixed movement + fixed fire), import HUD code **`1-7685-6236-0319-5283-780`**, and select Kestrel's `bgmi` preset. See the [matching-layout guide](docs/guide/bgmi-layout.md) for setup and limitations.
+
+Command-line equivalent:
 
 ```sh
-kestrel setup            # downloads the emulator, adb and the Android 16 Google Play image (several GB)
-kestrel setup --check    # shows what is installed
-kestrel setup --with-ndk # also installs the NDK, only needed to rebuild touchd
-```
-
-`kestrel setup` accepts the Android SDK licences for you. If you already have Android Studio's SDK in `~/Library/Android/sdk`, it is reused.
-
-## Build
-
-```sh
-swift build -c release
-./touchd/build.sh            # builds the on-device touch injector
-```
-
-## The app
-
-```sh
-./scripts/build-app.sh       # builds build/Kestrel.app (drag it to /Applications)
-```
-
-Kestrel.app does everything from one window:
-
-- **Instances** (sidebar): create, rename, duplicate, delete; Start, Cold Boot, Stop, Start All / Stop All. Stopping keeps the state, so the next Start resumes where you left off.
-- **Apps**: open Google Play, open a game's store page by package name, install APKs (button or drag and drop), open, close or uninstall apps. Games that have a keymap get a **Play** button that opens the game and turns key mapping on.
-- **Controls**: pick a game preset or make your own keymap, then edit it visually over a live screenshot of the game. Add any control type, drag to move, press a key to rebind, and fine-tune everything in the inspector. Save, duplicate, import and export keymaps. **Key Mapping** in the header turns it on or off, and can record your inputs for replay.
-- **Snapshots**: save the whole running state (game included) and restore it, or boot straight into it.
-- **Settings**: CPU, memory, frame rate, resolution, density, renderer, Vulkan, phone model, storage, mouse sensitivity, sound.
-
-On first launch, if the Android SDK is missing, the app offers to download it. Key mapping needs the Accessibility permission for Kestrel (System Settings → Privacy & Security → Accessibility). Instances keep running when you quit the app.
-
-## Quick start (command line)
-
-```sh
-kestrel create --name Main --preset high --resolution tablet-1920x1080
+kestrel setup
+kestrel create --name Main --preset high
 kestrel start 0 --wait
-kestrel install 0 game.apk
-kestrel open 0 com.pubg.imobile
+kestrel playstore 0 com.pubg.imobile
 kestrel play 0 --keymap bgmi
 ```
 
-`kestrel play` needs the macOS Accessibility permission for your terminal app (System Settings → Privacy & Security → Accessibility). It only reads keys while the emulator window is in front.
+## Documentation
 
-## Google Play
-
-New instances use Google's official **Google Play** system image, which already contains the Play Store and Google Play services. There is no Kestrel account; to install apps you sign in to your own Google account inside Android, exactly as on a phone:
-
-```sh
-kestrel start 0 --wait
-kestrel playstore 0                       # opens the Play Store; sign in the first time
-kestrel playstore 0 com.dts.freefireth    # opens one app's page
-```
-
-Google Play instances get at least 3 GB of RAM, because a 2 GB instance stalled right after boot in testing. APKs from outside the Play Store still install with `kestrel install 0 game.apk`.
-
-## Game controls
-
-Keymaps are JSON files in `keymaps/`. Coordinates are normalized (0 to 1), so one keymap works at any resolution. Bundled presets:
-
-| File | Game |
+| Guide | What it covers |
 |---|---|
-| `bgmi.json` | BGMI / PUBG Mobile |
-| `freefire.json` | Free Fire |
-| `codm.json` | Call of Duty: Mobile |
-| `genshin.json` | Genshin Impact |
-| `mlbb.json` | Mobile Legends: Bang Bang |
-| `clash-of-clans.json` | Clash of Clans (strategy) |
-| `asphalt.json` | Asphalt (racing) |
-| `subway-surfers.json` | Subway Surfers (runner) |
+| [Getting started](docs/guide/getting-started.md) | Install, first launch, SDK download, first instance, data location |
+| [User guide](docs/guide/user-guide.md) | Player window, sidebar, keymapping, editor, typing, microphone, snapshots, settings, CLI |
+| [Compatibility](docs/guide/compatibility.md) | What is tested, what is user-reported, known limits |
+| [Architecture](docs/guide/architecture.md) | How the emulator, gRPC streaming, Metal player, touch injection and keymap engine fit together |
+| [Building](docs/guide/building.md) | Build, test, package and release from source |
+| [Research](docs/research/README.md) | Every experiment, including the failed ones, and case studies (BGMI graphics, audio, detection surface) |
 
-Button positions are estimates of each game's default layout. If your HUD differs, move them in the visual editor (below).
-
-### Control types
-
-| Type | What it does |
-|---|---|
-| `tap` / `fire` | Holds a touch while the key is held |
-| `turbo` | Taps repeatedly while held (`intervalMs`) |
-| `joystick` | WASD and/or a gamepad stick drag a virtual stick. Optional walk (slower) and sprint (past the edge) modifiers |
-| `look` / `aim` | Mouse-look: relative mouse motion drags a finger and re-centres at the edge, so turning never runs out. Optional scope key with lower sensitivity and right-stick support |
-| `skill` | MOBA skill: holds the button and drags it toward the cursor. Optional cancel key and quick cast |
-| `swipe` | One swipe per key press |
-| `combo` | Several taps in sequence |
-| `scroll` | Mouse wheel turned into a swipe |
-| `pinch` | Two-finger zoom in/out |
-| `macro` | A script (see below), optionally looping while held |
-
-Any control can be limited to aim mode (`"mode": "look"`) or cursor mode (`"mode": "cursor"`). That is how left click fires while aiming but still clicks menus when the cursor is free.
-
-Defaults: `` ` `` toggles mouse-look (cursor locked and hidden), holding `Alt` frees the cursor temporarily, and `F12` hides the on-screen key hints. The first two can be changed with `lookToggleKey` and `freeCursorKey`.
-
-Gamepads that macOS supports (Xbox, PlayStation, MFi) work through the `Pad.A` … `Pad.Home` keys and the `stick` fields.
-
-### Visual editor
+## Build from source
 
 ```sh
-kestrel keymap edit bgmi 0        # opens over a live screenshot of instance 0
-kestrel keymap new my-game com.example.game
+brew install protobuf
+git clone https://github.com/iamthehimansh/kestrel.git && cd kestrel
+PROTOC_PATH=/opt/homebrew/bin/protoc swift test --jobs 1
+export KESTREL_VERSION=0.1.8 PROTOC_PATH=/opt/homebrew/bin/protoc
+bash scripts/build-app.sh                       # build/Kestrel.app
+SKIP_APP_BUILD=1 bash scripts/build-dmg.sh        # build/Kestrel-0.1.8.dmg
+bash scripts/verify-release.sh
 ```
 
-Drag a control to move it, double-click empty space to add a tap, select a control and press a key to rebind it, `[` / `]` shrink or grow a joystick/aim/skill radius, `⌫` deletes, `⌘S` saves. Bundled presets are never overwritten: your edited copy is saved to `KESTREL_HOME/keymaps` and takes priority.
+Needs Xcode with Swift 6.2. Details and troubleshooting: [Building](docs/guide/building.md).
 
-### Macro language
+## How it was built
 
-```
-tap 0.5 0.5                 # quick tap
-press A 0.2 0.8             # finger A down
-move A 0.3 0.8              # move finger A
-release A                   # lift finger A
-swipe 0.1 0.5 0.6 0.5 200   # swipe over 200 ms
-wait 50                     # pause
-repeat 3                    # repeat a block
-  tap 0.9 0.9
-end
-```
+Kestrel was created and vibe-coded with [Cana.build](https://cana.build) using its **REA mod**, which is based on the open-source [REA](https://github.com/morluto/rea) reverse-engineering toolkit. REA was used to study how existing Mac Android emulators are put together — graphics transport, input, settings and performance — so that Kestrel could re-implement the useful ideas as original code on top of Google's open-source emulator. No proprietary binaries, decompiled source or restricted Android images are included in this repository; the [research notes](docs/research/README.md) publish findings, measurements and reproducible methods instead.
 
-### Record and replay
+Every change was driven by an experiment with a recorded hypothesis, method and result, and the [experiment ledger](docs/research/experiment-ledger.md) keeps the rejected approaches alongside the ones that shipped.
 
-```sh
-kestrel play 0 --keymap bgmi --record run.txt   # Ctrl-C saves the recording
-kestrel replay 0 run.txt --keymap bgmi          # plays it back with the same timing
-```
+## Contributing
 
-Recordings are plain text, one `<ms> <event>` line per input, so they can be edited by hand.
+Contributions are welcome — new game keymaps, bug reports with logs, docs, tests and performance measurements are all useful. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Security issues: see [SECURITY.md](SECURITY.md).
 
-### Testing a keymap without a device
+## Limitations
 
-```sh
-kestrel keymap check bgmi
-kestrel keymap simulate bgmi keydown:W wait:50 keyup:W look:on mouse:40,0
-```
+- Not notarized; macOS shows a warning on first open.
+- Android SDK and system image are downloaded, not bundled.
+- Typing supports ASCII only.
+- Some games block emulators. Kestrel does not modify games or bypass anti-cheat.
+- Performance and compatibility vary by game; no parity with commercial emulators is claimed.
 
-## How touch injection works
+## Credits
 
-`touchd` is a small static arm64 program pushed to `/data/local/tmp`. On images that allow it, it writes Linux multitouch (protocol B) events to the emulator's own touchscreen. Google Play images are locked down and refuse that, so there it creates its own virtual touchscreen ("sec_touchscreen") through `/dev/uinput` and removes it when it exits. `kestrel play` keeps one `adb shell` open to it and streams `down`/`move`/`up` lines, so each event costs a pipe write rather than an adb round trip. Up to 10 fingers are supported.
+- Google's [Android Emulator](https://developer.android.com/studio/run/emulator) and Android SDK — the external runtime Kestrel drives. Components have their own licenses and SDK download terms; not every SDK/image component is Apache-2.0 licensed.
+- [grpc-swift](https://github.com/grpc/grpc-swift), [swift-protobuf](https://github.com/apple/swift-protobuf) and the other dependencies listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- [Cana.build](https://cana.build) and the [REA](https://github.com/morluto/rea) project, used to research and build Kestrel. Mentioning them does not imply their endorsement.
 
-## Commands
-
-```
-kestrel setup
-kestrel list | create | clone | rename | delete | info | config | start | stop | presets | images
-kestrel snapshot list | save | load | delete
-kestrel playstore | install | uninstall | open | close | apps | shell | screenshot | adb | tap
-kestrel keymap list | new | edit | show | check | simulate
-kestrel play | replay
-```
-
-Data lives in `~/Library/Application Support/Kestrel` (override with `KESTREL_HOME`). Instances use their own AVD folder, so existing Android Studio emulators are left alone.
-
-## Limits
-
-- **FPS cap:** `fpsLimit` is stored as a setting but not enforced yet. The Android Emulator has no per-instance frame cap. Whether a game offers 90/120 fps is decided by the game, often from the device model (the `deviceBrand` / `deviceModel` settings).
-- **Anti-cheat:** some games refuse to run on emulators. That is the game's choice; this project does not try to bypass it.
-- **Guest architecture:** only arm64 guest images are supported, because Apple Silicon cannot virtualise x86.
+Kestrel is not affiliated with Google, Krafton, Tencent, NetEase or any game publisher or emulator vendor. Game names are trademarks of their owners.
 
 ## License
 
-MIT. See `LICENSE`.
+MIT for Kestrel's original code — see [LICENSE](LICENSE). Third-party components keep their own licences; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

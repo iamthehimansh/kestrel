@@ -1,0 +1,68 @@
+# Continuous integration for Kestrel.
+#
+# Builds the Swift package and runs the Swift and Python unit tests on an
+# Apple Silicon (arm64) macOS runner.
+#
+# Not covered here: native-player runtime tests (streaming, touch injection,
+# typing, audio) need a local Android VM started with the Android emulator,
+# which GitHub-hosted runners cannot provide. Run those checks locally and
+# describe the results in the pull request; see CONTRIBUTING.md.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swift:
+    name: Swift build and test
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      PROTOC_PATH: /opt/homebrew/bin/protoc
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install protobuf
+        run: brew install protobuf
+
+      - name: Show tool versions
+        run: |
+          uname -m
+          sw_vers
+          xcodebuild -version
+          swift --version
+          "$PROTOC_PATH" --version
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test --jobs 1
+
+  python:
+    name: Packaging script tests
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Run Python unit tests
+        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v

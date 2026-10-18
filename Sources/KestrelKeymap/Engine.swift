@@ -333,7 +333,7 @@ public final class KeymapEngine {
         var scale = fromKeys ? 1.0 : min(mag, 1.0)
         if let wk = j.walkKey, held.contains(wk) { scale *= j.walkScale ?? 0.5 }
         if let sk = j.sprintKey, held.contains(sk) { scale *= j.sprintScale ?? 1.6 }
-        let r = j.radius * scale
+        let r = j.radius * (j.travel ?? 1) * scale
         // Radius is a fraction of width; y is scaled by aspect to keep the circle round.
         let target = NPoint(j.center.x + dx / mag * r, j.center.y + dy / mag * r * aspect).clamped
         if !isDown(o) {

@@ -69,6 +69,18 @@ public struct KeymapEditor: Sendable {
         return true
     }
 
+    /// Scales how far a joystick drags its touch without changing the drawn ring.
+    /// Returns false for controls other than a joystick.
+    @discardableResult
+    public mutating func adjustTravel(_ index: Int, by factor: Double) -> Bool {
+        guard keymap.controls.indices.contains(index), factor.isFinite, factor > 0,
+              case .joystick(var j) = keymap.controls[index] else { return false }
+        let t = min(max((j.travel ?? 1) * factor, 0.25), 4)
+        j.travel = abs(t - 1) < 0.001 ? nil : (t * 100).rounded() / 100
+        keymap.controls[index] = .joystick(j)
+        return true
+    }
+
     /// Rebinds the key of a single-key control. Returns false for multi-key controls
     /// (joystick, pinch, scroll, look), which are edited in the JSON.
     @discardableResult

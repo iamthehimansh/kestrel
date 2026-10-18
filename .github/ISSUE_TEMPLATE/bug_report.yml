@@ -1,0 +1,155 @@
+name: Bug report
+description: Something in Kestrel does not work as expected.
+title: "bug: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Please fill in as much as you can; logs and exact steps make bugs much faster to fix.
+
+        - Security problems: do not use this form. Report them privately as described in SECURITY.md.
+        - A game that does not run or play correctly: use the "Game compatibility report" form instead.
+        - Before attaching logs or screenshots, remove tokens, account names and other personal information.
+
+  - type: input
+    id: kestrel-version
+    attributes:
+      label: Kestrel version
+      description: From the app's About window, the DMG name, or the commit hash if you built from source.
+      placeholder: "0.1.8 (or commit abc1234)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How did you install Kestrel?
+      options:
+        - Release DMG
+        - Built Kestrel.app with scripts/build-app.sh
+        - swift run / swift build from source
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      description: Apple menu > About This Mac, or `sw_vers`.
+      placeholder: "macOS 15.5 (24F74)"
+    validations:
+      required: true
+
+  - type: input
+    id: mac-model
+    attributes:
+      label: Mac model and memory
+      placeholder: "MacBook Pro 14-inch, M3 Pro, 18 GB"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where does the problem appear?
+      options:
+        - Setup and Android SDK download
+        - Creating or configuring instances
+        - Starting or stopping instances
+        - Native player window and streaming
+        - Keymapping and the live editor
+        - Typing into Android text fields
+        - Audio or microphone
+        - Command-line tool (kestrel)
+        - Building or packaging
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: instance-settings
+    attributes:
+      label: Instance settings
+      description: |
+        Output of `kestrel info <i>`, or the CPU, RAM, resolution, renderer and Android image you use. Remove anything personal.
+      render: text
+
+  - type: input
+    id: game
+    attributes:
+      label: Game or app (if relevant)
+      description: Name, Android package name and version.
+      placeholder: "Call of Duty: Mobile, com.activision.callofduty.shooter, 1.0.48"
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem. Include any error message exactly as shown.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest set of steps that shows the problem, starting from a fresh launch if possible.
+      placeholder: |
+        1. Start instance 0 from the app
+        2. Open the player and enable mapping
+        3. Press W
+        4. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it happen?
+      options:
+        - Every time
+        - Often
+        - Sometimes
+        - Happened once
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        The relevant part of `~/Library/Application Support/Kestrel/instances/<i>/emulator.log` (or the same path under `KESTREL_HOME`), plus any terminal output. This will be formatted as code automatically.
+      render: text
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or recordings
+      description: Drag images or short screen recordings here if they help show the problem.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Workarounds you found, whether it worked in an earlier version, other emulators running at the same time, and so on.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and this has not been reported yet.
+          required: true
+        - label: I removed tokens, account details and other personal information from logs and screenshots.
+          required: true

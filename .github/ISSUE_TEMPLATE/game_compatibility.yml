@@ -1,0 +1,174 @@
+name: Game compatibility report
+description: Report how a specific game runs on Kestrel, whether it works or not.
+title: "compat: <game name> - <works / partly works / does not work>"
+labels: ["game-compatibility", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Compatibility reports help other players and show where Kestrel needs work. Reports that a game works well are just as useful as reports that it does not.
+
+        Please only report what you actually tested with Kestrel. If you did not try a feature, leave it as "Not tested" rather than guessing.
+
+        Kestrel does not bypass anti-cheat, emulator detection or Play Integrity. If a game refuses to run for that reason, report it here so it is documented, but a workaround will not be added.
+
+  - type: input
+    id: game-name
+    attributes:
+      label: Game
+      placeholder: "Free Fire"
+    validations:
+      required: true
+
+  - type: input
+    id: package
+    attributes:
+      label: Android package name
+      description: Shown by `kestrel apps <i>`.
+      placeholder: "com.dts.freefireth"
+    validations:
+      required: true
+
+  - type: input
+    id: game-version
+    attributes:
+      label: Game version
+      placeholder: "1.104.1"
+    validations:
+      required: true
+
+  - type: input
+    id: install-source
+    attributes:
+      label: Where was the game installed from?
+      placeholder: "Google Play inside the instance"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: status
+    attributes:
+      label: Overall status
+      options:
+        - Works - playable with no significant problems
+        - Partly works - playable with problems listed below
+        - Starts but is not playable
+        - Does not start or crashes
+        - Blocked by the game (emulator detection, integrity or anti-cheat)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: graphics
+    attributes:
+      label: Graphics and frame rate
+      options:
+        - Smooth
+        - Usable with occasional stutter
+        - Poor
+        - Graphical glitches or a black screen
+        - Not tested
+    validations:
+      required: true
+
+  - type: dropdown
+    id: controls
+    attributes:
+      label: Keymapping
+      options:
+        - Works with a bundled preset
+        - Works with my own keymap
+        - Partly works
+        - Does not work
+        - Not tested
+    validations:
+      required: true
+
+  - type: dropdown
+    id: audio
+    attributes:
+      label: Audio
+      options:
+        - Works
+        - Has problems
+        - No audio
+        - Not tested
+    validations:
+      required: true
+
+  - type: dropdown
+    id: online
+    attributes:
+      label: Online play and login
+      options:
+        - Works
+        - Has problems
+        - Does not work
+        - Not tested
+        - Game has no online features
+    validations:
+      required: true
+
+  - type: input
+    id: kestrel-version
+    attributes:
+      label: Kestrel version
+      placeholder: "0.1.8 (or commit abc1234)"
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: "macOS 15.5"
+    validations:
+      required: true
+
+  - type: input
+    id: mac-model
+    attributes:
+      label: Mac model and memory
+      placeholder: "Mac mini, M2, 16 GB"
+    validations:
+      required: true
+
+  - type: textarea
+    id: instance-settings
+    attributes:
+      label: Instance settings
+      description: Output of `kestrel info <i>`, or the CPU count, RAM, resolution, DPI, renderer, FPS limit and Android image. Mention any workaround you applied, such as a per-app ANGLE setting.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: What did you test, and what went wrong?
+      description: How long you played, which modes or features you tried, and any problems with steps to reproduce them.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant lines from `instances/<i>/emulator.log` under `~/Library/Application Support/Kestrel` (or `KESTREL_HOME`). Required if the game crashes or does not start.
+      render: text
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: A screenshot of the game running, and of any error shown. Remove account names and other personal information.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I tested this game with Kestrel myself, and everything above reflects what I observed.
+          required: true
+        - label: I did not modify the game or use tools to bypass its protections.
+          required: true

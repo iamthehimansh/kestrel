@@ -27,6 +27,7 @@ public struct Launcher {
             args += ["-grpc", "\(player.port)", "-grpc-use-jwt", "-grpc-allowlist", player.policyFile.path]
         }
         if !s.audio { args.append("-no-audio") }
+        else if s.microphone == true { args.append("-allow-host-audio") }
         if let snapshot {
             args += ["-snapshot", snapshot, "-no-snapshot-save", "-force-snapshot-load"]
         } else if coldBoot {

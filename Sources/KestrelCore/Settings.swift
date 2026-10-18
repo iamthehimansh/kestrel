@@ -36,6 +36,9 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
     public var keymap: String?
     public var mouseSensitivity: Double
     public var audio: Bool
+    /// Pass the Mac's microphone to Android (`-allow-host-audio`). Off by default; without it
+    /// the emulator feeds silence to apps that record. Needs `audio` and macOS mic permission.
+    public var microphone: Bool?
     public var window: Bool
 
     public init(
@@ -59,6 +62,7 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
         keymap: String? = nil,
         mouseSensitivity: Double = 1.0,
         audio: Bool = true,
+        microphone: Bool? = nil,
         window: Bool = true
     ) {
         self.name = name
@@ -81,6 +85,7 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
         self.keymap = keymap
         self.mouseSensitivity = mouseSensitivity
         self.audio = audio
+        self.microphone = microphone
         self.window = window
     }
 
@@ -109,7 +114,7 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
         guard let patch = try JSONSerialization.jsonObject(with: json) as? [String: Any] else {
             throw KestrelError.invalid("settings patch must be a JSON object")
         }
-        let known = Set(base.keys).union(["deviceBrand", "deviceModel", "deviceIdentityPreset", "keymap", "disableAsyncSwap"])
+        let known = Set(base.keys).union(["deviceBrand", "deviceModel", "deviceIdentityPreset", "keymap", "disableAsyncSwap", "microphone"])
         for (k, v) in patch {
             guard known.contains(k) else { throw KestrelError.invalid("unknown setting '\(k)'") }
             base[k] = v

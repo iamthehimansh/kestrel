@@ -35,6 +35,22 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(Launcher.arguments(for: instance, avdName: "test"), baseline)
     }
 
+    func testMicrophoneIsOptInAndRequiresSound() throws {
+        var instance = try store.create(name: "Mic")
+        let baseline = Launcher.arguments(for: instance, avdName: "test")
+        XCTAssertFalse(baseline.contains("-allow-host-audio"), "microphone is off by default")
+        instance.settings.microphone = true
+        let withMic = Launcher.arguments(for: instance, avdName: "test")
+        XCTAssertEqual(withMic.filter { $0 == "-allow-host-audio" }.count, 1)
+        XCTAssertEqual(withMic.filter { $0 != "-allow-host-audio" }, baseline, "mic adds only one flag")
+        instance.settings.audio = false
+        let muted = Launcher.arguments(for: instance, avdName: "test")
+        XCTAssertTrue(muted.contains("-no-audio"))
+        XCTAssertFalse(muted.contains("-allow-host-audio"), "no mic when sound is off")
+        XCTAssertEqual(try instance.settings.merging(json: Data(#"{"microphone":false}"#.utf8)).microphone, false)
+        XCTAssertThrowsError(try instance.settings.merging(json: Data(#"{"microphone":"yes"}"#.utf8)))
+    }
+
     func testCreateListCloneDelete() throws {
         let a = try store.create(name: "Main", preset: .low, resolution: "tablet-1280x720")
         XCTAssertEqual(a.index, 0)

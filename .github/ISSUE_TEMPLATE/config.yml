@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/iamthehimansh/kestrel/security/advisories/new
+    about: Please report security problems privately here, not in a public issue.
+  - name: Read the guides
+    url: https://github.com/iamthehimansh/kestrel/tree/main/docs/guide
+    about: Setup, usage, compatibility and building instructions.
+  - name: Contributing guide
+    url: https://github.com/iamthehimansh/kestrel/blob/main/CONTRIBUTING.md
+    about: How to build, test, add keymaps and open a pull request.

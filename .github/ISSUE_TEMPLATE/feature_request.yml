@@ -1,0 +1,77 @@
+name: Feature request
+description: Suggest a new feature or an improvement to an existing one.
+title: "feat: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Describing the problem you are trying to solve is more useful than describing a specific solution, so please start there.
+
+        Requests to bypass anti-cheat, emulator detection or Play Integrity, or to modify games, will be closed. See CONTRIBUTING.md for the reasons.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: What are you trying to do, and what gets in the way today?
+      placeholder: "When I play X, I need to ... but currently ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How you imagine it working. Mock-ups or examples from other tools are welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and workarounds
+      description: Other approaches you considered, or what you do today instead.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Setup and Android SDK
+        - Instances and settings
+        - Native player window
+        - Keymapping and the live editor
+        - Typing and text input
+        - Audio or microphone
+        - Command-line tool (kestrel)
+        - Building, packaging or CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: game
+    attributes:
+      label: Game or app this relates to (if any)
+      placeholder: "Genshin Impact, com.miHoYo.GenshinImpact"
+
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Would you like to work on this?
+      options:
+        - "Yes, I would like to implement it"
+        - "Maybe, with some guidance"
+        - "No"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and this has not been requested yet.
+          required: true

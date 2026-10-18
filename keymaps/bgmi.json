@@ -1,41 +1,407 @@
 {
-  "name": "BGMI / PUBG Mobile (FPP/TPP default HUD)",
-  "package": "com.pubg.imobile",
-  "description": "WASD move, mouse look (` toggles), LMB fire, RMB scope, Alt frees cursor. Adjust positions with `kestrel keymap edit` if you use a custom HUD.",
-  "aspect": 1.7778,
-  "lookToggleKey": "Grave",
-  "freeCursorKey": "Alt",
-  "startInLook": false,
-  "controls": [
-    {"type": "joystick", "up": "W", "down": "S", "left": "A", "right": "D", "stick": "left", "center": [0.145, 0.72], "radius": 0.065, "walkKey": "Ctrl", "walkScale": 0.45, "sprintKey": "Shift", "sprintScale": 1.6},
-    {"type": "look", "center": [0.62, 0.42], "radius": 0.14, "sensitivity": 1.0, "stick": "right", "stickSpeed": 1100, "scopeKey": "MouseRight", "scopeSensitivity": 0.55},
-    {"type": "fire", "key": "MouseLeft", "at": [0.865, 0.62], "mode": "look", "label": "Fire"},
-    {"type": "tap", "key": "MouseRight", "at": [0.935, 0.42], "mode": "look", "label": "Scope"},
-    {"type": "tap", "key": "Pad.R2", "at": [0.865, 0.62], "label": "Fire (pad)"},
-    {"type": "tap", "key": "Pad.L2", "at": [0.935, 0.42], "label": "Scope (pad)"},
-    {"type": "tap", "key": "Space", "at": [0.925, 0.79], "label": "Jump"},
-    {"type": "tap", "key": "C", "at": [0.855, 0.92], "label": "Crouch"},
-    {"type": "tap", "key": "Z", "at": [0.935, 0.92], "label": "Prone"},
-    {"type": "tap", "key": "R", "at": [0.79, 0.92], "label": "Reload"},
-    {"type": "tap", "key": "F", "at": [0.66, 0.45], "label": "Pick up / Open"},
-    {"type": "tap", "key": "G", "at": [0.705, 0.92], "label": "Throwable"},
-    {"type": "tap", "key": "Q", "at": [0.81, 0.31], "label": "Peek left"},
-    {"type": "tap", "key": "E", "at": [0.885, 0.31], "label": "Peek right"},
-    {"type": "tap", "key": "1", "at": [0.425, 0.9], "label": "Weapon 1"},
-    {"type": "tap", "key": "2", "at": [0.575, 0.9], "label": "Weapon 2"},
-    {"type": "tap", "key": "3", "at": [0.5, 0.9], "label": "Pistol"},
-    {"type": "tap", "key": "4", "at": [0.31, 0.92], "label": "Heal"},
-    {"type": "tap", "key": "5", "at": [0.36, 0.92], "label": "Boost"},
-    {"type": "tap", "key": "B", "at": [0.74, 0.78], "label": "Fire mode"},
-    {"type": "tap", "key": "Tab", "at": [0.06, 0.06], "label": "Bag"},
-    {"type": "tap", "key": "M", "at": [0.905, 0.12], "label": "Map"},
-    {"type": "tap", "key": "V", "at": [0.535, 0.06], "label": "FPP/TPP"},
-    {"type": "tap", "key": "T", "at": [0.28, 0.06], "label": "Voice"},
-    {"type": "tap", "key": "Y", "at": [0.33, 0.06], "label": "Mic"},
-    {"type": "tap", "key": "H", "at": [0.25, 0.88], "label": "Vehicle horn"},
-    {"type": "tap", "key": "X", "at": [0.585, 0.8], "label": "Holster"},
-    {"type": "tap", "key": "Escape", "at": [0.965, 0.04], "label": "Settings"},
-    {"type": "swipe", "key": "N", "from": [0.4, 0.5], "to": [0.6, 0.5], "durationMs": 120, "label": "Free look"},
-    {"type": "macro", "key": "Mouse4", "label": "Quick heal + reload", "script": "tap 0.31 0.92\nwait 400\ntap 0.79 0.92"}
-  ]
+  "aspect" : 1.7778,
+  "controls" : [
+    {
+      "center" : [
+        0.145,
+        0.72
+      ],
+      "down" : "S",
+      "left" : "A",
+      "radius" : 0.09516650000000004,
+      "right" : "D",
+      "sprintKey" : "Shift",
+      "sprintScale" : 1.6,
+      "stick" : "left",
+      "travel" : 1.77,
+      "type" : "joystick",
+      "up" : "W",
+      "walkKey" : "Ctrl",
+      "walkScale" : 0.45
+    },
+    {
+      "center" : [
+        0.62,
+        0.42
+      ],
+      "radius" : 0.14,
+      "scopeKey" : "MouseRight",
+      "scopeSensitivity" : 0.55,
+      "sensitivity" : 1,
+      "stick" : "right",
+      "stickSpeed" : 1100,
+      "type" : "look"
+    },
+    {
+      "at" : [
+        0.85,
+        0.749
+      ],
+      "key" : "MouseLeft",
+      "label" : "Fire",
+      "mode" : "look",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.96,
+        0.523
+      ],
+      "key" : "MouseRight",
+      "label" : "Scope",
+      "mode" : "look",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.85,
+        0.749
+      ],
+      "key" : "Pad.R2",
+      "label" : "Fire (pad)",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.96,
+        0.523
+      ],
+      "key" : "Pad.L2",
+      "label" : "Scope (pad)",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.958,
+        0.687
+      ],
+      "key" : "Space",
+      "label" : "Jump",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.844,
+        0.93
+      ],
+      "key" : "C",
+      "label" : "Crouch",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.921,
+        0.925
+      ],
+      "key" : "Z",
+      "label" : "Prone",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.765,
+        0.933
+      ],
+      "key" : "R",
+      "label" : "Reload",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.69,
+        0.933
+      ],
+      "key" : "G",
+      "label" : "Throwable",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.192,
+        0.414
+      ],
+      "key" : "Q",
+      "label" : "Peek left",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.256,
+        0.414
+      ],
+      "key" : "E",
+      "label" : "Peek right",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.425,
+        0.9
+      ],
+      "key" : "1",
+      "label" : "Weapon 1",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.575,
+        0.9
+      ],
+      "key" : "2",
+      "label" : "Weapon 2",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.614,
+        0.839
+      ],
+      "key" : "3",
+      "label" : "Pistol",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.31,
+        0.92
+      ],
+      "key" : "4",
+      "label" : "Heal",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.36,
+        0.92
+      ],
+      "key" : "5",
+      "label" : "Boost",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.415,
+        0.842
+      ],
+      "key" : "B",
+      "label" : "Fire mode",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.07,
+        0.913
+      ],
+      "key" : "Tab",
+      "label" : "Bag",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.905,
+        0.12
+      ],
+      "key" : "M",
+      "label" : "Map",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.258,
+        0.851
+      ],
+      "key" : "V",
+      "label" : "FPP/TPP",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.843,
+        0.124
+      ],
+      "key" : "T",
+      "label" : "Voice",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.843,
+        0.206
+      ],
+      "key" : "Y",
+      "label" : "Mic",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.25,
+        0.88
+      ],
+      "key" : "H",
+      "label" : "Vehicle horn",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.585,
+        0.8
+      ],
+      "key" : "X",
+      "label" : "Holster",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.843,
+        0.04
+      ],
+      "key" : "Escape",
+      "label" : "Settings",
+      "type" : "tap"
+    },
+    {
+      "durationMs" : 120,
+      "from" : [
+        0.773,
+        0.306
+      ],
+      "key" : "N",
+      "label" : "Free look",
+      "to" : [
+        0.833,
+        0.306
+      ],
+      "type" : "swipe"
+    },
+    {
+      "key" : "Mouse4",
+      "label" : "Quick heal + reload",
+      "script" : "tap 0.306 0.933\nwait 400\ntap 0.765 0.933",
+      "type" : "macro"
+    },
+    {
+      "key" : "F",
+      "label" : "Drive / Open door / Pick up / Exit vehicle",
+      "script" : "tap 0.676 0.423\nwait 40\ntap 0.677 0.686\nwait 40\ntap 0.593 0.726\nwait 40\ntap 0.874 0.448",
+      "type" : "macro"
+    },
+    {
+      "at" : [
+        0.676,
+        0.539
+      ],
+      "key" : "J",
+      "label" : "Get in (passenger)",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.774,
+        0.603
+      ],
+      "key" : "L",
+      "label" : "Switch to driver seat",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.783,
+        0.533
+      ],
+      "key" : "O",
+      "label" : "Parachute",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.501,
+        0.612
+      ],
+      "key" : "U",
+      "label" : "Rescue teammate",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.1478,
+        0.4631
+      ],
+      "key" : "K",
+      "label" : "Sprint lock",
+      "type" : "tap"
+    },
+    {
+      "key" : "Backspace",
+      "label" : "Cancel throw / Cancel skill",
+      "script" : "tap 0.249 0.533\nwait 40\ntap 0.334 0.586",
+      "type" : "macro"
+    },
+    {
+      "at" : [
+        0.893,
+        0.363
+      ],
+      "key" : "Period",
+      "label" : "Mark location",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.961,
+        0.363
+      ],
+      "key" : "Enter",
+      "label" : "Quick chat",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.8,
+        0.125
+      ],
+      "key" : "P",
+      "label" : "Emote",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.598,
+        0.628
+      ],
+      "key" : "I",
+      "label" : "Carry teammate",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.898,
+        0.573
+      ],
+      "key" : "Mouse5",
+      "label" : "Side (shoulder swap)",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.674,
+        0.2525
+      ],
+      "key" : "Semicolon",
+      "type" : "tap"
+    },
+    {
+      "at" : [
+        0.7211,
+        0.2598
+      ],
+      "key" : "Quote",
+      "type" : "tap"
+    }
+  ],
+  "description" : "WASD move, mouse look (` toggles), LMB fire, RMB scope, Alt frees cursor. Adjust positions with `kestrel keymap edit` if you use a custom HUD.",
+  "freeCursorKey" : "Alt",
+  "lookToggleKey" : "Grave",
+  "name" : "BGMI / PUBG Mobile (FPP/TPP default HUD)",
+  "package" : "com.pubg.imobile",
+  "startInLook" : false
 }

@@ -4,7 +4,7 @@ import KestrelKeymap
 /// Stages edits independently of the saved keymap while video continues underneath.
 final class PlayerKeymapOverlay: NSView {
     let canvas: KeymapCanvasView
-    let status = NSTextField(labelWithString: "Drag to move · double-click to add · select and press a key to rebind")
+    let status = NSTextField(labelWithString: "Select joystick: [ ] ring size · ⇧[ ⇧] push distance · drag to move · double-click to add · press a key to rebind")
     var onSave: ((Keymap) throws -> Void)?
     var onDismiss: (() -> Void)?
     private let saveButton = NSButton(title: "Save", target: nil, action: nil)

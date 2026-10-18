@@ -131,9 +131,16 @@ public final class KeymapCanvasView: NSView {
                 setSelected(nil, notify: true)
                 changed("Removed.")
             }
-        case 0x21, 0x1E: // [ ]
+        case 0x21, 0x1E: // [ ]  (Shift: push distance instead of ring size)
             if let s = selected {
-                if editor.resize(s, by: event.keyCode == 0x1E ? 1.1 : 1 / 1.1) { changed("Resized.") }
+                let factor = event.keyCode == 0x1E ? 1.1 : 1 / 1.1
+                if event.modifierFlags.contains(.shift) {
+                    if editor.adjustTravel(s, by: factor) {
+                        if case .joystick(let j) = editor.keymap.controls[s] {
+                            changed(String(format: "Push distance %.0f%%.", (j.travel ?? 1) * 100))
+                        }
+                    } else { status = "Push distance applies to joysticks only." }
+                } else if editor.resize(s, by: factor) { changed("Resized.") }
                 else { status = "This control has no radius." }
             }
         default:
@@ -223,6 +230,9 @@ public final class KeymapCanvasView: NSView {
         switch control {
         case .joystick(let j):
             circle(a, CGFloat(j.radius) * scale, color)
+            if let t = j.travel, abs(t - 1) > 0.001 {
+                circle(a, CGFloat(j.radius * t) * scale, NSColor.systemGreen.withAlphaComponent(0.8))
+            }
         case .look(let l):
             circle(a, CGFloat(l.radius) * scale, color.withAlphaComponent(0.4))
         case .skill(let s) where s.radius > 0:
