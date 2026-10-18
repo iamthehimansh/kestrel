@@ -106,16 +106,16 @@ static int create_uinput(int w, int h, char *out, size_t outlen) {
     struct uinput_setup us;
     memset(&us, 0, sizeof us);
     us.id.bustype = BUS_VIRTUAL;
-    us.id.vendor = 0x4b65;  // "Ke"
-    us.id.product = 0x7374; // "st"
+    us.id.vendor = 0x04e8;  // plausible input vendor (Samsung Electronics)
+    us.id.product = 0xa001;
     us.id.version = 1;
-    snprintf(us.name, sizeof us.name, "kestrel-touch");
+    snprintf(us.name, sizeof us.name, "sec_touchscreen");
     ok = ok && ioctl(f, UI_DEV_SETUP, &us) == 0 && ioctl(f, UI_DEV_CREATE) == 0;
     if (!ok) { int e = errno; close(f); errno = e; return -1; }
     uinput_created = 1;
     abs_x.minimum = 0; abs_x.maximum = w - 1;
     abs_y.minimum = 0; abs_y.maximum = h - 1;
-    snprintf(out, outlen, "uinput:kestrel-touch");
+    snprintf(out, outlen, "uinput:sec_touchscreen");
     // Give Android's InputReader time to pick the new device up.
     usleep(400 * 1000);
     return f;

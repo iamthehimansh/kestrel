@@ -25,7 +25,7 @@ public final class PrintSink: TouchSink {
 /// Streams ops to `touchd` running on the device over one persistent `adb shell`, so each
 /// event costs one pipe write instead of an adb round trip.
 public final class DeviceSink: TouchSink {
-    public static let remotePath = "/data/local/tmp/kestrel-touchd"
+    public static let remotePath = "/data/local/tmp/sec_touchd"
 
     private let process: Process
     private let stdin: FileHandle

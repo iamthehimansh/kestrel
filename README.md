@@ -155,7 +155,7 @@ kestrel keymap simulate bgmi keydown:W wait:50 keyup:W look:on mouse:40,0
 
 ## How touch injection works
 
-`touchd` is a small static arm64 program pushed to `/data/local/tmp`. On images that allow it, it writes Linux multitouch (protocol B) events to the emulator's own touchscreen. Google Play images are locked down and refuse that, so there it creates its own virtual touchscreen ("kestrel-touch") through `/dev/uinput` and removes it when it exits. `kestrel play` keeps one `adb shell` open to it and streams `down`/`move`/`up` lines, so each event costs a pipe write rather than an adb round trip. Up to 10 fingers are supported.
+`touchd` is a small static arm64 program pushed to `/data/local/tmp`. On images that allow it, it writes Linux multitouch (protocol B) events to the emulator's own touchscreen. Google Play images are locked down and refuse that, so there it creates its own virtual touchscreen ("sec_touchscreen") through `/dev/uinput` and removes it when it exits. `kestrel play` keeps one `adb shell` open to it and streams `down`/`move`/`up` lines, so each event costs a pipe write rather than an adb round trip. Up to 10 fingers are supported.
 
 ## Commands
 

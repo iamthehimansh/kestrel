@@ -180,6 +180,15 @@ public enum AVDConfig {
             ("runtime.network.latency", "none"),
             ("runtime.network.speed", "full"),
         ]
+        // Spoofed GPU strings when an identity profile is active: without
+        // these the GL/GLES translator reports "Android Emulator OpenGL ES
+        // Translator (<host chip>)" (FINDINGS.md vectors 14-16).
+        if let preset = s.deviceIdentityPreset, let identity = DeviceIdentity.profile(preset) {
+            lines += [
+                ("hw.glrenderer", identity.glRenderer),
+                ("hw.glvendor", identity.glVendor),
+            ]
+        }
         lines.sort { $0.0 < $1.0 }
         return lines.map { "\($0.0)=\($0.1)" }.joined(separator: "\n") + "\n"
     }

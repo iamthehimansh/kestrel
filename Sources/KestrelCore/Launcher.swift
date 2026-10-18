@@ -30,8 +30,14 @@ public struct Launcher {
         }
         args += ["-feature", s.vulkan ? "Vulkan" : "-Vulkan"]
         if s.vulkan { args += ["-feature", "GLDirectMem"] }
-        if let brand = s.deviceBrand { args += ["-prop", "ro.product.brand=\(brand)"] }
-        if let model = s.deviceModel { args += ["-prop", "ro.product.model=\(model)"] }
+        if let presetID = s.deviceIdentityPreset, let identity = DeviceIdentity.profile(presetID) {
+            // Full coherent phone identity: every guest-visible identity value
+            // moves together (research/stealth/FINDINGS.md vectors 1-13).
+            for (name, value) in identity.properties { args += ["-prop", "\(name)=\(value)"] }
+        } else {
+            if let brand = s.deviceBrand { args += ["-prop", "ro.product.brand=\(brand)"] }
+            if let model = s.deviceModel { args += ["-prop", "ro.product.model=\(model)"] }
+        }
         return args
     }
 

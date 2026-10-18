@@ -60,3 +60,65 @@ Legend: **LEAK** = a game can read this today and conclude "emulator";
   MEETS_STRONG_INTEGRITY. Any game gating on Play Integrity (BGMI/PUBG do for
   payments; some gate matchmaking) will still classify the device as
   non-genuine regardless of every other fix.
+
+## Re-measurement after the stealth changes (2026-10-18, same probe, same AVD)
+
+Three mechanisms were implemented in code and then measured live; results
+below are what the guest actually reported, not intent.
+
+### A. Launcher `-prop` identity injection (DeviceIdentity.swift + Launcher.swift)
+Booted kestrel-0 cold with the full Galaxy S24 Ultra `-prop` set (57 props,
+generated directly from `DeviceIdentity.properties` so the test matches the
+shipped code exactly). Guest spot-check after boot:
+
+| prop | expected | measured |
+|---|---|---|
+| ro.product.model | SM-S928B | **sdk_gphone64_arm64** |
+| ro.product.brand | samsung | **google** |
+| ro.hardware | qcom | **ranchu** |
+| ro.kernel.qemu | 0/absent | **1** |
+| ro.build.fingerprint | samsung/… | **google/sdk_gphone64_arm64/emu64a:16/…** |
+| ro.build.characteristics | default | **emulator** |
+
+Leak count over the 15 tracked probe vectors: **15 → 15 (0 closed)**.
+
+Cause: on Android 16 these `ro.*` values are imported from `build.prop`
+inside the read-only system partition *before* the emulator's qemu-props
+service runs; Android's property service refuses to overwrite an existing
+`ro.*` key, so `-prop` can only ADD new keys, never change the built-in
+identity. This matches why MuMu injects its own `nemu.ro.product.*`
+namespace (REPORT.md) instead of overriding `ro.product.*`.
+
+### B. `hw.glrenderer` / `hw.glvendor` config keys (AVDConfig.render)
+Both keys were written into config.ini before boot. Measured GL strings
+after boot: unchanged — `Google (Apple)` / `Android Emulator OpenGL ES
+Translator (Apple M2 Pro)`. This emulator build does not honor those keys
+on the gfxstream translator path; the strings originate host-side in the
+ANGLE/gfxstream layer.
+
+### C. Image-level build.prop patch (the commercial mechanism; feasibility test)
+Carved the EROFS system partition out of system.img (fs starts at 3 MiB),
+extracted with fsck.erofs, rewrote `system/build.prop` (Samsung identity,
+emulator tells dropped, 132→143 lines), repacked with mkfs.erofs
+(lz4hc, 4k), reassembled a patched system.img and pointed the AVD at it.
+Extraction/patch/repack all succeeded, but **the guest never completed
+boot** (adb stayed `device offline` >7 minutes). A from-scratch repack
+loses boot-critical metadata — most plausibly SELinux xattr contexts
+and/or AVB/verity structure (the stock image carries
+`VerifiedBootParams.textproto` and verity blocks mkfs.erofs does not
+regenerate). Conclusion: image-level patching IS the viable mechanism
+(commercial emulators all ship purpose-built guest images), but it must be
+a proper image build that preserves xattrs and handles verity — not a
+naive runtime repack. The AVD was restored to the stock image and
+verified healthy afterwards (boots in 15-20 s, original identity).
+
+### Net honest status
+- Code shipped on this branch: coherent identity profiles, prop emission,
+  GL config keys, `sec_touchscreen` rename — architecture correct and
+  typechecked, **measured insufficient alone** for props/GL on stock
+  Google images (A + B).
+- The working mechanism (C) needs a build-time image pipeline: preserve
+  xattrs + handle verity/AVB. That is the concrete next step; the
+  experiment scripts are preserved in the workdir (`patch_image2.sh`,
+  `retest_identity.sh`, `compare_leaks.py`).
+- Play Integrity remains unbeatable by any of these (see plan doc).

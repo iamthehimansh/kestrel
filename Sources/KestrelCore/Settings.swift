@@ -27,6 +27,9 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
     public var performance: PerformancePreset
     public var deviceBrand: String?
     public var deviceModel: String?
+    /// Optional `DeviceIdentity` profile id; when set, the launcher presents
+    /// that full phone identity to the guest (see `DeviceIdentity.swift`).
+    public var deviceIdentityPreset: String?
     public var dataPartitionGB: Int
     public var systemImage: String
     public var keymap: String?
@@ -48,6 +51,7 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
         performance: PerformancePreset = .medium,
         deviceBrand: String? = nil,
         deviceModel: String? = nil,
+        deviceIdentityPreset: String? = nil,
         dataPartitionGB: Int = 16,
         systemImage: String = "system-images;android-36;google_apis_playstore;arm64-v8a",
         keymap: String? = nil,
@@ -68,6 +72,7 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
         self.performance = performance
         self.deviceBrand = deviceBrand
         self.deviceModel = deviceModel
+        self.deviceIdentityPreset = deviceIdentityPreset
         self.dataPartitionGB = dataPartitionGB
         self.systemImage = systemImage
         self.keymap = keymap
@@ -87,6 +92,9 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
         if ![30, 60, 90, 120, 144, 165, 240].contains(fpsLimit) { errors.append("fpsLimit must be one of 30,60,90,120,144,165,240") }
         if !(2...512).contains(dataPartitionGB) { errors.append("dataPartitionGB must be 2-512") }
         if !(0.1...10).contains(mouseSensitivity) { errors.append("mouseSensitivity must be 0.1-10") }
+        if let preset = deviceIdentityPreset, DeviceIdentity.profile(preset) == nil {
+            errors.append("deviceIdentityPreset '\(preset)' is not a known identity (known: \(DeviceIdentity.all.map(\.id).joined(separator: ", ")))")
+        }
         if systemImage.split(separator: ";").count != 4 { errors.append("systemImage must look like system-images;android-NN;tag;abi") }
         return errors
     }
@@ -98,7 +106,7 @@ public struct InstanceSettings: Codable, Equatable, Sendable {
         guard let patch = try JSONSerialization.jsonObject(with: json) as? [String: Any] else {
             throw KestrelError.invalid("settings patch must be a JSON object")
         }
-        let known = Set(base.keys).union(["deviceBrand", "deviceModel", "keymap"])
+        let known = Set(base.keys).union(["deviceBrand", "deviceModel", "deviceIdentityPreset", "keymap"])
         for (k, v) in patch {
             guard known.contains(k) else { throw KestrelError.invalid("unknown setting '\(k)'") }
             base[k] = v
