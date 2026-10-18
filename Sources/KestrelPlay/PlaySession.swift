@@ -68,6 +68,17 @@ final class PlayController {
     private weak var hintParentWindow: NSWindow?
     private var nativePointerDown = false
     func setHintOpacity(_ value: Double) { overlay?.setOpacity(value) }
+    private var inputSuspended = false
+    func setInputSuspended(_ suspended: Bool) {
+        inputSuspended = suspended
+        if suspended {
+            nativePointerDown = false
+            unlockCursor()
+            driver.post(.reset)
+            driver.sync { _ in }
+            focused = false
+        }
+    }
     /// Short status lines for whoever hosts the session (stdout for the CLI, the app's UI).
     var onStatus: ((String) -> Void)?
     private var tap: CFMachPort?
@@ -165,6 +176,7 @@ final class PlayController {
     }
 
     private func applyFocus(_ nowFocused: Bool, frame: CGRect?) {
+        let nowFocused = nowFocused && !inputSuspended
         if nowFocused != focused {
             focused = nowFocused
             if !focused {
@@ -236,6 +248,7 @@ final class PlayController {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
+        if inputSuspended { return Unmanaged.passUnretained(event) }
         if let windowProvider {
             let state = windowProvider()
             emulatorFrame = state.frame

@@ -181,6 +181,7 @@ extension AppModel {
                     MainActor.assumeIsolated {
                         player.player.setKeymappingEnabled(true)
                         session.setHintOpacity(player.player.hintOpacity)
+                        session.setInputSuspended(player.player.isMappingPopoverOpen)
                     }
                 }
                 self.activeSessions.insert(i)

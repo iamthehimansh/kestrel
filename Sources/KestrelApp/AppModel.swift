@@ -236,6 +236,9 @@ final class AppModel: ObservableObject {
                 self?.states[i] = .running
             }
             player.onTextInputFocused = { [weak self] in self?.stopKeymapping(i) }
+            player.onGameplayInputBlocked = { [weak self] blocked in
+                self?.sessions[i]?.setInputSuspended(blocked)
+            }
             player.player.onKeymappingChanged = { [weak self] enabled in
                 guard let self else { return }
                 if enabled { self.startKeymapping(i) } else { self.stopKeymapping(i) }

@@ -102,6 +102,7 @@ public final class NativePlayerSessionController {
     private var touches: PlayerTouchDispatcher?
     private var keymapLease: PlayerKeymapSink?
     public var onStopping: (() -> Void)?
+    public var onGameplayInputBlocked: ((Bool) -> Void)?
     private let session: EmulatorPlayerSession
     private let request: EmulatorFrameRequest
     private var task: Task<Void, Never>?
@@ -128,6 +129,13 @@ public final class NativePlayerSessionController {
         player.onAction = { [weak self] in self?.perform($0) }
         player.onClose = { [weak self] in self?.stop() }
         player.onDisconnect = { [weak self] in self?.stop() }
+        player.onGameplayInputBlocked = { [weak self] blocked in
+            guard let self else { return }
+            self.diagnosticKeyboard?.invalidate()
+            if blocked { self.player.frameView.setPointerHandler(nil) }
+            self.onGameplayInputBlocked?(blocked)
+            if !blocked { self.enableDirectPointer() }
+        }
     }
 
     public func start(coldBoot: Bool = false, snapshot: String? = nil) {
@@ -306,7 +314,7 @@ public final class NativePlayerSessionController {
     }
 
     private func enableDirectPointer() {
-        guard !stopping, !player.isEditingKeymap, !applyingOrientation, rotationTask == nil, keymapLease == nil, let touches else { return }
+        guard !stopping, !player.isMappingPopoverOpen, !player.isEditingKeymap, !applyingOrientation, rotationTask == nil, keymapLease == nil, let touches else { return }
         player.supportedActions.insert(.rotate)
         player.frameView.setPointerHandler { [weak self] events in
             if !touches.submit(events) {
@@ -386,7 +394,7 @@ public final class NativePlayerSessionController {
         let screen = window.convertToScreen(view.convert(local, to: nil))
         let quartz = CGRect(x: screen.minX, y: primary.frame.maxY - screen.maxY,
                             width: screen.width, height: screen.height)
-        let focused = NSApp.isActive && window.isKeyWindow && window.attachedSheet == nil
+        let focused = !player.isMappingPopoverOpen && NSApp.isActive && window.isKeyWindow && window.attachedSheet == nil
             && window.firstResponder === view && !view.isHidden && !window.isMiniaturized
         return (quartz, focused)
     }

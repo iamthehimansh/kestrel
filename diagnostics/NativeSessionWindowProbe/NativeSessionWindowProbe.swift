@@ -226,8 +226,13 @@ private final class WindowProbe: NSObject, NSApplicationDelegate {
         guard let button = descendants(content).compactMap({ $0 as? NSButton }).first(where: { $0.title == "Keymapping controls" }) else {
             throw KestrelError.runtime("Missing sidebar control")
         }
+        var inputBlocked = false
+        player.onGameplayInputBlocked = { inputBlocked = $0 }
         button.performClick(nil)
         try await Task.sleep(for: .milliseconds(400))
+        guard inputBlocked, player.isMappingPopoverOpen else {
+            throw KestrelError.runtime("Opening popover did not suspend gameplay input")
+        }
         guard let popover = NSApp.windows.first(where: { candidate in
             guard let view = candidate.contentView else { return false }
             return descendants(view).contains { ($0 as? NSButton)?.title == "Enable keymapping" }
@@ -249,8 +254,41 @@ private final class WindowProbe: NSObject, NSApplicationDelegate {
         }
         slider.doubleValue = 0.5
         slider.sendAction(slider.action, to: slider.target)
+        guard let cell = slider.cell as? NSSliderCell else { throw KestrelError.runtime("Missing slider cell") }
+        let knob = cell.knobRect(flipped: slider.isFlipped)
+        let start = slider.convert(NSPoint(x: knob.midX, y: knob.midY), to: nil)
+        let end = slider.convert(NSPoint(x: slider.bounds.width * 0.25, y: knob.midY), to: nil)
+        func mouse(_ type: NSEvent.EventType, at point: NSPoint) throws {
+            guard let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: popover.windowNumber,
+                context: nil, eventNumber: 1, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1) else {
+                throw KestrelError.runtime("Could not create slider drag event")
+            }
+            NSApp.postEvent(event, atStart: false)
+        }
+        let monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { event in
+            print("Sidebar mouse event: type=\(event.type.rawValue) window=\(event.windowNumber) location=\(event.locationInWindow)")
+            return event
+        }
+        defer { if let monitor { NSEvent.removeMonitor(monitor) } }
+        log("Drag setup: enabled=\(slider.isEnabled), visible=\(slider.visibleRect), popover=\(popover.windowNumber), start=\(start), end=\(end), key=\(popover.isKeyWindow), active=\(NSApp.isActive), postAllowed=\(CGPreflightPostEventAccess())")
+        NSApp.activate(ignoringOtherApps: true)
+        try await Task.sleep(for: .milliseconds(300))
+        try mouse(.leftMouseDown, at: start)
+        try await Task.sleep(for: .milliseconds(150))
+        for step in 1...5 {
+            let fraction = CGFloat(step) / 5
+            try mouse(.leftMouseDragged, at: NSPoint(x: start.x + (end.x - start.x) * fraction, y: end.y))
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        try mouse(.leftMouseUp, at: end)
+        try await Task.sleep(for: .milliseconds(150))
+        log("Slider drag result: blocked=\(inputBlocked), enabled=\(player.keymappingEnabled), slider=\(slider.doubleValue), opacity=\(player.hintOpacity), knob=\(knob), bounds=\(slider.bounds)")
+        guard inputBlocked, player.keymappingEnabled, player.hintOpacity < 0.4, player.hintOpacity > 0.1 else {
+            throw KestrelError.runtime("Actual slider mouse tracking failed while gameplay was suspended")
+        }
         try await Task.sleep(for: .milliseconds(200))
-        log("[3/3] Capture sidebar popover and verify disable")
+        log("[3/3] Capture sidebar after mouse drag and verify disable")
         let number = popover.windowNumber
         try await Task.detached {
             try PlayerCommandProcess.run(executable: URL(fileURLWithPath: "/usr/sbin/screencapture"),
@@ -258,7 +296,15 @@ private final class WindowProbe: NSObject, NSApplicationDelegate {
         }.value
         toggle.performClick(nil)
         guard !player.keymappingEnabled, requests == [true, false] else { throw KestrelError.runtime("Disable failed") }
+        log("Closing popover: buttonEnabled=\(button.isEnabled), connected=\(player.isConnected), blocked=\(inputBlocked)")
         button.performClick(nil) // Close the transient popover before resizing its anchor.
+        let closeDeadline = ProcessInfo.processInfo.systemUptime + 2
+        while player.isMappingPopoverOpen && ProcessInfo.processInfo.systemUptime < closeDeadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        guard !inputBlocked, !player.isMappingPopoverOpen else {
+            throw KestrelError.runtime("Popover did not release its gameplay input block")
+        }
         guard let scroll = descendants(content).compactMap({ $0 as? NSScrollView }).first(where: {
             $0.identifier?.rawValue == "player.actionScroll"
         }), let rail = scroll.documentView as? NSStackView else {

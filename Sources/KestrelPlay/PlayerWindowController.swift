@@ -35,7 +35,7 @@ public enum PlayerWindowAction: Int, CaseIterable, Sendable {
 
 /// A native presentation window. The host supplies authenticated video and command handlers;
 /// constructing this controller alone never launches a VM or fabricates a connected session.
-public final class PlayerWindowController: NSWindowController, NSWindowDelegate {
+public final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSPopoverDelegate {
     public let frameView: PlayerFrameView
     public private(set) var isConnected = false
     public private(set) var sidePanelVisible = true
@@ -46,6 +46,18 @@ public final class PlayerWindowController: NSWindowController, NSWindowDelegate 
     public var onClose: (() -> Void)?
     public var onKeymappingChanged: ((Bool) -> Void)? { didSet { updateControls() } }
     public var onHintOpacityChanged: ((Double) -> Void)?
+    public var onGameplayInputBlocked: ((Bool) -> Void)?
+    public private(set) var isMappingPopoverOpen = false
+
+    public func popoverWillShow(_ notification: Notification) {
+        isMappingPopoverOpen = true
+        onGameplayInputBlocked?(true)
+    }
+
+    public func popoverDidClose(_ notification: Notification) {
+        isMappingPopoverOpen = false
+        onGameplayInputBlocked?(false)
+    }
     public private(set) var keymappingEnabled = false
     public private(set) var hintOpacity: Double = 1
     private var mappingButton: NSButton?
@@ -412,6 +424,7 @@ public final class PlayerWindowController: NSWindowController, NSWindowDelegate 
         mappingPopover.contentViewController = popoverController
         mappingPopover.contentSize = NSSize(width: 252, height: 128)
         mappingPopover.behavior = .transient
+        mappingPopover.delegate = self
         let body = NSStackView(views: [display, panel])
         body.orientation = .horizontal
         body.distribution = .fill
