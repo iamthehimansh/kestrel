@@ -321,7 +321,6 @@ public struct Keymap: Codable, Equatable, Sendable {
     /// Human-readable problems; empty when the keymap is usable.
     public func validate() -> [String] {
         var problems: [String] = []
-        var seen: [String: Int] = [:]
         if controls.filter({ if case .look = $0 { return true }; return false }).count > 1 {
             problems.append("only one look control is allowed")
         }
@@ -330,13 +329,9 @@ public struct Keymap: Codable, Equatable, Sendable {
             for p in points(of: c) where !p.isNormalized {
                 problems.append("\(where_): point [\(p.x), \(p.y)] is outside 0...1")
             }
-            for k in c.keys {
-                if !KeyNames.isKnown(k) { problems.append("\(where_): unknown key '\(k)'") }
-                let slot = "\(c.mode.rawValue):\(k)"
-                if let prev = seen[slot], !jointKey(controls[prev], c, k) {
-                    problems.append("\(where_): key '\(k)' already used by control \(prev)")
-                }
-                seen[slot] = i
+            // One key may drive several controls: the engine dispatches every active match.
+            for k in c.keys where !KeyNames.isKnown(k) {
+                problems.append("\(where_): unknown key '\(k)'")
             }
             switch c {
             case .joystick(let j):
@@ -361,13 +356,6 @@ public struct Keymap: Codable, Equatable, Sendable {
             }
         }
         return problems
-    }
-
-    private func jointKey(_ a: Control, _ b: Control, _ key: String) -> Bool {
-        // A look scope key may double as a tap (e.g. right mouse = scope + ADS button).
-        if case .look = a { return true }
-        if case .look = b { return true }
-        return false
     }
 
     private func points(of c: Control) -> [NPoint] {

@@ -14,6 +14,17 @@ instance where that matters. See [CONTRIBUTING.md](CONTRIBUTING.md#evidence-stan
 
 Nothing yet.
 
+## [0.1.9] - Preview
+
+### Added
+
+- **One key, several places.** A key can now be bound to more than one control; one press fires all of them, for example three taps on `F`. Validation no longer reports "already used by control". Covered by a unit test that checks one press produces three touches.
+- **Mouse buttons in the live editor.** With a control selected, the right, middle and side mouse buttons and the scroll wheel now rebind it (`MouseRight`, `MouseMiddle`, `Mouse4`, `Mouse5`, `WheelUp`, `WheelDown`). Left click still selects and drags. Compiled and installed; not yet exercised by an automated UI test.
+
+### Fixed
+
+- A core test assumed every machine gives the low preset 2 CPUs. Small CI runners correctly get 1 because the preset leaves the host 2 cores; the test now follows the host-clamped value, with a separate deterministic test for the clamp.
+
 ## [0.1.8] - Preview
 
 First public release. Kestrel is preview software: it works and is in daily use

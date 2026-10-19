@@ -129,7 +129,7 @@ Keymaps are the easiest way to make Kestrel more useful, and you do not need to 
    swift run kestrel keymap check keymaps/<game>.json
    ```
 
-   It prints `<game>.json: OK (<n> controls)` on success, or one line per problem and a non-zero exit status. It catches out-of-range coordinates, unknown key names, duplicate keys in the same mode, invalid radii and timings, and unparsable macros.
+   It prints `<game>.json: OK (<n> controls)` on success, or one line per problem and a non-zero exit status. It catches out-of-range coordinates, unknown key names, invalid radii and timings, and unparsable macros. Reusing a key on several controls is allowed; one press then fires all of them.
 6. **Try it in the game** with the live editor: open the player, enable mapping from the sidebar, raise hint opacity so you can see the controls over the HUD, and drag anything that is misplaced. You can also run `swift run kestrel keymap edit <game> <instance>` to edit over a live screenshot. Edits are saved to your user keymap folder (`$KESTREL_HOME/keymaps`, a file with the same name overrides the bundled preset) and bundled presets are never modified, so copy the adjusted file back into `keymaps/` for your pull request and run `keymap check` on it again.
 
 In the pull request, state the game version, the Android resolution and DPI you tested at, and attach a screenshot of the hints over the game HUD. If you could only validate the file and not play with it, say so; that is still a useful contribution, but it must be described accurately.

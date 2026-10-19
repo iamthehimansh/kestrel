@@ -115,6 +115,23 @@ public final class KeymapCanvasView: NSView {
 
     override public func mouseUp(with event: NSEvent) { dragging = false }
 
+    // Non-left buttons and the wheel rebind the selected control; left click stays for selecting/dragging.
+    override public func rightMouseDown(with event: NSEvent) { rebindSelected("MouseRight") }
+
+    override public func otherMouseDown(with event: NSEvent) {
+        switch event.buttonNumber {
+        case 2: rebindSelected("MouseMiddle")
+        case 3: rebindSelected("Mouse4")
+        case 4: rebindSelected("Mouse5")
+        default: break
+        }
+    }
+
+    override public func scrollWheel(with event: NSEvent) {
+        guard selected != nil, event.scrollingDeltaY != 0, event.phase == [] || event.phase == .began else { return }
+        rebindSelected(event.scrollingDeltaY > 0 ? "WheelUp" : "WheelDown")
+    }
+
     // MARK: Keys
 
     override public func keyDown(with event: NSEvent) {

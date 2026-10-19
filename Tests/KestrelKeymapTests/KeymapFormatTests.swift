@@ -43,9 +43,21 @@ final class KeymapFormatTests: XCTestCase {
         ])
         let p = km.validate()
         XCTAssertTrue(p.contains { $0.contains("outside 0...1") }, "\(p)")
-        XCTAssertTrue(p.contains { $0.contains("already used") }, "\(p)")
+        XCTAssertFalse(p.contains { $0.contains("already used") }, "\(p)")
         XCTAssertTrue(p.contains { $0.contains("unknown key 'Banana'") }, "\(p)")
         XCTAssertTrue(p.contains { $0.contains("unknown command 'fly'") }, "\(p)")
+    }
+
+    func testOneKeyPressesSeveralPlaces() {
+        let km = Keymap(name: "multi", controls: [
+            .tap(TapControl(key: "F", at: NPoint(0.2, 0.5))),
+            .tap(TapControl(key: "F", at: NPoint(0.5, 0.5))),
+            .tap(TapControl(key: "F", at: NPoint(0.8, 0.5))),
+        ])
+        XCTAssertEqual(km.validate(), [])
+        let e = KeymapEngine(keymap: km, screenWidth: 1000, screenHeight: 500)
+        let downs = e.handle(.keyDown("F"), at: 0).filter { if case .down = $0 { return true }; return false }
+        XCTAssertEqual(downs.count, 3, "one key press touches all three places")
     }
 
     func testSameKeyAllowedInDifferentModes() {

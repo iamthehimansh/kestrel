@@ -55,7 +55,9 @@ final class CoreTests: XCTestCase {
         let a = try store.create(name: "Main", preset: .low, resolution: "tablet-1280x720")
         XCTAssertEqual(a.index, 0)
         XCTAssertEqual(a.settings.width, 1280)
-        XCTAssertEqual(a.settings.cpuCount, 2)
+        XCTAssertEqual(a.settings.cpuCount,
+                       Presets.cpuMemory(.low, hostCores: Host.cores, hostMemoryMB: Host.memoryMB).cpu,
+                       "CPU count follows the host-clamped preset")
         let b = try store.clone(0)
         XCTAssertEqual(b.index, 1)
         XCTAssertEqual(b.settings.name, "Main (copy)")
@@ -64,6 +66,12 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(try store.list().map(\.index), [1])
         XCTAssertEqual(try store.nextIndex(), 0, "freed index is reused")
         XCTAssertThrowsError(try store.load(0))
+    }
+
+    func testCPUPresetLeavesHostHeadroom() {
+        XCTAssertEqual(Presets.cpuMemory(.low, hostCores: 10, hostMemoryMB: 16384).cpu, 2)
+        XCTAssertEqual(Presets.cpuMemory(.low, hostCores: 3, hostMemoryMB: 8192).cpu, 1, "small CI hosts keep 2 cores free")
+        XCTAssertEqual(Presets.cpuMemory(.high, hostCores: 2, hostMemoryMB: 4096).cpu, 1, "never below one vCPU")
     }
 
     func testAVDConfigGenerated() throws {

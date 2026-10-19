@@ -77,11 +77,11 @@ The engine checks the look-toggle key first, then the free-cursor key, before or
 
 **Shift versus Alt:** Shift is not intrinsically a sprint key; it sprints only when configured as `sprintKey`. Alt's default global free-cursor role takes precedence over ordinary control dispatch while look mode is on. It does not disable an `always` joystick or override Shift's configured multiplier. If Alt is also used as a walk/sprint key, its consumed event does not directly refresh the joystick, although its held state can affect a later refresh. Prefer a separate modifier, as the BGMI preset does with Ctrl for walking.
 
-### Duplicate bindings are not universally forbidden
+### One key can drive several controls
 
-The validator tracks keys by `mode:key` and reports repeated keys in the same mode, except that a collision involving a `look` control is allowed (for example, a scope-sensitivity modifier sharing an ADS tap). Keys in different modes are not rejected by that check. The implementation remembers the most recently seen control for each slot; this is not an exhaustive proof of collision-free dispatch.
+Since 0.1.9 the validator does not reject a key that is already bound to another control, in any mode. This is intentional: binding the same key to two or three `tap` controls makes one press touch all of those positions at once.
 
-On a normal key-down the engine invokes **every active matching control**, not just the first. Thus an `always` binding and a `look` binding on the same key can both fire. Ordinary repeated OS key-downs are ignored while held. Key-up is processed for matching controls regardless of their current mode. Use intentional sharing sparingly and test it.
+On a normal key-down the engine invokes **every active matching control**, not just the first, so an `always` binding and a `look` binding on the same key can both fire. Ordinary repeated OS key-downs are ignored while held. Key-up is processed for matching controls regardless of their current mode. Each simultaneous control uses its own touch slot, so a shared key counts toward the ten-slot limit once per control. Sharing a key with a joystick, look, or modifier can produce surprising combinations; test shared bindings in a safe area first.
 
 ## The ten control types
 
@@ -332,7 +332,7 @@ The sample's `scopeKey` only changes sensitivity. Add a separately positioned AD
 
 ## Validation boundaries
 
-`validate()` checks point bounds, known dispatch keys, its mode-scoped duplicate-key rule, one-look-only, joystick/look radii, joystick travel and presence of movement input, positive look sensitivity, turbo/combo interval minima, swipe duration minimum, a nonempty combo, and macro **parsing**.
+`validate()` checks point bounds, known dispatch keys (repeated keys are allowed), one-look-only, joystick/look radii, joystick travel and presence of movement input, positive look sensitivity, turbo/combo interval minima, swipe duration minimum, a nonempty combo, and macro **parsing**.
 
 It does **not** comprehensively validate every field. In particular, it does not check top-level aspect/sensitivity/global-key names, stick names, movement/scope multipliers, stick speed, skill radius/cancel-key names, scroll distance/duration, pinch spread/duration, macro compiled length, or touch-slot demand. Negative or extreme values in unchecked fields can produce unintended behavior or unsafe runtime conversions. Prefer finite positive scales and gesture durations; do not use validation success as permission to supply arbitrary numbers.
 
@@ -359,7 +359,9 @@ The canvas must have keyboard focus. These are editor operations, not gameplay k
 | Click a control | Select it. Macros are not canvas hit targets. |
 | Drag selected control | Move its anchor. Swipe/combo points move together; the edit is clamped to keep points on screen. Skill `cancelAt` stays fixed. |
 | Double-click empty space | Add a tap with an unused letter, digit, or function key. |
-| Ordinary known key | Rebind a selected single-key control. Modifier presses can also rebind it. |
+| Ordinary known key | Rebind a selected single-key control. Modifier presses can also rebind it. The key may already be used elsewhere. |
+| Right / middle / side mouse button | Rebind the selected single-key control to `MouseRight`, `MouseMiddle`, `Mouse4` or `Mouse5`. Left click stays reserved for selecting and dragging. |
+| Scroll wheel | Rebind the selected single-key control to `WheelUp` or `WheelDown` (one rebind per scroll gesture). |
 | `[` / `]` | Divide/multiply radius by `1.1` for joystick, look, or positive-radius skill; editor radius clamp is `0.01...0.5`. |
 | `Shift+[` / `Shift+]` | Divide/multiply joystick **travel** by `1.1`, without changing base radius; clamp `0.25...4`, round to two decimals, omit the field near 1. |
 | Backspace / Delete | Remove the selected control. |
